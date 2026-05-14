@@ -21,7 +21,7 @@ export default defineConfig({
       { text: 'Get Started', link: '/Introduction' },
       {
         text: 'GitHub',
-        link: 'https://github.com/',
+        link: 'https://github.com/yos-sk/prcgapdoc',
       },
     ],
 
@@ -49,7 +49,7 @@ export default defineConfig({
 
     editLink: {
       pattern:
-        'https://github.com/<org>/prcgapdoc/edit/main/docs/:path',
+        'https://github.com/yos-sk/prcgapdoc/edit/master/docs/:path',
       text: 'Edit this page on GitHub',
     },
 
