@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: PRCGAP
-  text: Cancer genome analysis on a personalized reference
+  text: Personalized Reference genome-based Cancer Genome Analysis Pipeline 
   tagline: |
     Snakemake workflow for comprehensive tumor/normal cancer genome analysis
     using long-read sequencing (PacBio HiFi & Oxford Nanopore Technologies) on phased de
