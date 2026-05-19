@@ -1,34 +1,47 @@
 /* ---------- Wider main content area ----------
- * VitePress defaults: --vp-layout-max-width 1440px, .VPDoc.has-aside
- * .content-container max-width 688px. Both are widened here so the prose
- * column on doc pages (Workflow, Preparation, etc.) gets more horizontal
- * room. Adjust the numbers to taste.
+ * VitePress defaults: --vp-layout-max-width 1440px, .VPDoc .container 1152px,
+ * .VPDoc.has-aside .content-container 688px. All three are widened here so
+ * the prose column on doc pages (Workflow, Preparation, etc.) gets more
+ * horizontal room — comparable to VuePress-1.x sites that use ~50–57vw doc
+ * widths. Tweak the numbers below to taste.
  */
 
 :root {
-  --vp-layout-max-width: 1600px;
+  --vp-layout-max-width: 1920px;
 }
 
 @media (min-width: 960px) {
+  .VPDoc .container {
+    max-width: 1100px !important;
+  }
   .VPDoc.has-aside .content-container {
-    max-width: 820px;
+    max-width: 820px !important;
   }
 }
 
 @media (min-width: 1280px) {
   .VPDoc .container {
-    max-width: 1280px;
+    max-width: 1380px !important;
   }
   .VPDoc.has-aside .content-container {
-    max-width: 960px;
+    max-width: 1080px !important;
   }
 }
 
 @media (min-width: 1440px) {
   .VPDoc .container {
-    max-width: 1380px;
+    max-width: 1520px !important;
   }
   .VPDoc.has-aside .content-container {
-    max-width: 1040px;
+    max-width: 1200px !important;
+  }
+}
+
+@media (min-width: 1600px) {
+  .VPDoc .container {
+    max-width: 1680px !important;
+  }
+  .VPDoc.has-aside .content-container {
+    max-width: 1320px !important;
   }
 }
