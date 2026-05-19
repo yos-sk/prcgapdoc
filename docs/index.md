@@ -23,7 +23,7 @@ features:
   - title: Personalized reference
     details: Calls variants against a sample-specific phased de novo assembly produced by the upstream assembly_workflow, reducing reference bias in structurally complex regions.
   - title: Long-read native
-    details: Built around PacBio HiFi and Oxford Nanopore reads. Methylation via pb-CpG-tools / modkit, SVs via NanoMonSV, point mutations via ClairS and DeepSomatic.
+    details: Built around PacBio HiFi and Oxford Nanopore reads. Methylation via pb-CpG-tools / modkit, SVs via Nanomonsv, point mutations via ClairS and DeepSomatic.
   - title: Reproducible by design
     details: Every step runs inside Singularity / Apptainer images. Local, UGE, and SLURM execution profiles are bundled.
 ---

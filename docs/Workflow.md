@@ -6,7 +6,7 @@ This page describes how PRCGAP is structured internally: the modules, their depe
 
 ![PRCGAP workflow](./plot/prcgap_workflow.svg)
 
-> Place the rendered figure at `docs/plot/prcgap_workflow.svg`. To regenerate it (or a sample-specific DAG), run snakemake with `--rulegraph` (rule-only view) or `--dag` (per-sample / per-chromosome view; much larger) and pipe to Graphviz:
+> The figure above is a hand-curated, high-level summary — each rectangle corresponds to a module group rather than a single Snakemake rule. To inspect the full rule-level DAG for a specific configuration, run snakemake with `--rulegraph` (rule-only view) or `--dag` (per-sample / per-chromosome view; much larger) and pipe to Graphviz:
 >
 > ```bash
 > snakemake \
@@ -72,7 +72,7 @@ Both ClairS and DeepSomatic raw VCFs go through `point_mutation_postprocess`, wh
 
 **Scope:** per tumor, per seqtype. **Rule file:** `annotate_sv.smk` (+ shared `gff_to_bed`).
 
-- `prep_sv` — filters the per-seqtype NanoMonSV insert-classified table to PASS calls and extracts a breakpoint BED.
+- `prep_sv` — filters the per-seqtype Nanomonsv insert-classified table to PASS calls and extracts a breakpoint BED.
 - `coordconv_sv_{grch38,chm13}` — lifts the breakpoint BED via the configured chain files (each step is skipped if its chain is empty).
 - `annotate_sv_main` — adds gene / RepeatMasker / size / kmer ratio / centromere / segdup / misassembly / cross-seqtype / gnomAD columns to the PASS table.
 - `reclassify_sv` — combines the HiFi and ONT annotated tables for a tumor and uses the per-haplotype copynumber reference tables (from §3) to reclassify inter-contig SV directions on a CHM13-normalized basis. Both HiFi and ONT reclassified outputs are emitted.
@@ -100,7 +100,7 @@ PRCGAP's Snakemake rules live under `PRCGAP/workflow/rules/`. The workflow is co
 | `bam_refiner.smk` | Read alignment to phased de novo assemblies (per sample, per seqtype) |
 | `methylation.smk` | Methylation calling (HiFi: pb-CpG-tools; ONT: modkit) |
 | `copynumber.smk` | Copy number profiling |
-| `nanomonsv.smk` | NanoMonSV parse / get / insert classify / postprocess / connect / merge |
+| `nanomonsv.smk` | Nanomonsv parse / get / insert classify / postprocess / connect / merge |
 | `clairs.smk` | ClairS somatic variant calling and post-processing |
 | `deepsomatic.smk` | DeepSomatic somatic variant calling and post-processing |
 | `annotate_sv.smk` | SV annotation (`prep_sv`, `coordconv_sv_*`, `annotate_sv_main`, `reclassify_sv`) + the shared `gff_to_bed` rule |
