@@ -131,7 +131,7 @@ python3 extract_LINE1.py rmsk_out/{sample}.fa.out \
 tabix -p bed {sample}.LINE1.bed.gz
 ```
 
-## 5. Centromeric satellite annotation — DNA-NN (per haplotype)
+## 4. Centromeric satellite annotation — DNA-NN (per haplotype)
 
 PRCGAP consumes one centromeric satellite BED per haplotype (`hap1_satellite`, `hap2_satellite`). These are produced with [DNA-NN (`dna-brnn`)](https://github.com/lh3/dna-nn), which classifies alpha satellite (HSat1) and HSat2/3 sequences directly from a haplotype FASTA. Run it once per haplotype:
 
@@ -153,7 +153,7 @@ done
 
 `{sample}.hap1_dna-brnn.bed.gz` and `{sample}.hap2_dna-brnn.bed.gz` are what go into `config.yaml` as `hap1_satellite` and `hap2_satellite` respectively.
 
-## 6. (Optional) Variant-annotation resources
+## 5. (Optional) Variant-annotation resources
 
 PRCGAP's SV and SNV/INDEL annotation modules consume an additional set of resource files. **Every flag is optional**: any missing input simply skips the corresponding annotation column without failing the DAG. The full per-flag table lives in [Usage.md](./Usage.md#variant-annotation-resource-flags-optional); the table below summarises how each resource is typically obtained.
 
@@ -173,7 +173,7 @@ PRCGAP's SV and SNV/INDEL annotation modules consume an additional set of resour
 `--gnomad-bed`, `--gnomad-vcf`, and the transanno-driven INDEL liftover all require the matching `--chain-to-grch38` (and `--grch38-fasta`) to be supplied.
 
 
-### 6.1. (Optional) Chain files
+### 5.1. (Optional) Chain files
 
 PRCGAP's SV / SNV / INDEL annotation can lift every variant back onto GRCh38 and CHM13 to attach the reference coordinate and to cross-reference public resources keyed to those references (notably gnomAD). The liftover is driven by UCSC-style **chain files** that map the personalized haplotype assemblies onto each target reference.
 
@@ -193,7 +193,7 @@ transanno minimap2chain \
 - If you generate one chain per haplotype, concatenate them (`cat` of the two `.chain` files is sufficient — chain files are line-oriented) before passing to PRCGAP, since PRCGAP expects a single chain per target reference.
 - `--gnomad-bed` and `--gnomad-vcf` depend on `--chain-to-grch38` (and `--grch38-fasta`); leaving the chain empty silently disables those downstream annotations.
 
-### 6.2. (Optional) Segmental duplications
+### 5.2. (Optional) Segmental duplications
 
 Segmental duplications are large near-identical paralogous segments and a common source of SV / variant-calling artefacts. PRCGAP overlays them onto SV / SNV / INDEL calls so that hits inside known SDs can be filtered or flagged.
 
@@ -217,7 +217,7 @@ tabix -p bed {sample}.segdup.bed.gz
 
 The same workflow accepts the output of related tools (e.g. [BISER](https://github.com/0xTCG/biser)) — PRCGAP only needs a tabix-indexed BED keyed to the haplotype contigs. See the [sedef repository](https://github.com/vpc-ccg/sedef) for tuning options.
 
-### 6.3. (Optional) Centromere / satellite annotation
+### 5.3. (Optional) Centromere / satellite annotation
 
 The DNA-NN BED produced in §5 (`--hap{1,2}-satellite`) is used **only inside the copynumber module to mask the per-haplotype reference**; the variant-annotation modules do **not** consume it. For SV / SNV / INDEL annotation, PRCGAP instead accepts a **finer-grained centromere / satellite BED on the diploid assembly** (`--censat-bed`), used to mark variants that fall inside specific satellite-array subtypes (HOR / αSat / HSat1A/B / HSat2 / HSat3 …) rather than the coarse `dna-brnn` classes.
 

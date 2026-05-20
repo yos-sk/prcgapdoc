@@ -4,9 +4,9 @@ PRCGAP (<u>**P**</u>ersonalized <u>**R**</u>eference genome-based <u>**C**</u>an
 
 ## Overview
 
-- Performs somatic variant calling, copynumber profiling, and DNA mehtylation analysis against a personalized reference genome.
+- Performs somatic variant calling (point mutations and structural variants), copynumber profiling, and DNA mehtylation analysis against a personalized reference genome.
 - **Inputs:** a tumor / normal pair of ONT and HiFi reads (BAM or FASTQ.gz), plus the corresponding hap1 / hap2 assembly FASTAs.
-- **Outputs:** point mutation, structural variant (SV), copy number, and methylation callsets, each annotated against gene / repeat / centromere / segdup / gnomAD references and lifted to GRCh38 / CHM13.
+- **Outputs:** point mutation, structural variant (SV), copy number, and methylation callsets, each annotated against gene / repeat / centromere / segdup / gnomAD references and lifted to GRCh38 / CHM13 for variants.
 
 PRCGAP is responsible for variant calling, post-processing, and annotation on the personalized reference genome. Generating the personalized reference genome and the accompanying annotation files is treated as a separate, upstream step; see [Preparation.md](./Preparation.md) for how those inputs are produced and supplied to PRCGAP.
 
@@ -16,9 +16,9 @@ The modules below mirror the Analysis Steps section of `PRCGAP/README.md`:
 
 | Module | Description | Container image |
 |--------|-------------|-----------------|
-| BAM Refiner | Align tumor / normal reads to the phased de novo assemblies | `bam_refiner` |
+| BAM_refiner | Align tumor / normal reads to the phased de novo assemblies | `bam_refiner` |
 | Methylation | Methylation calling for HiFi and  ONT data | `methylation` |
-| Copy Number | Copy number profiling | `copynumber` |
+| Copynumber | Copy-number profiling | `copynumber` |
 | Nanomonsv pipeline | parse → get → postprocess → insert classify → connect → HiFi/ONT merge | `nanomonsv`, `nanomonsv_postprocess` |
 | Point mutation (ClairS) | Somatic SNV/indel calling and post-processing (realignment / pileup / haplotyping) | `clairs`, `point_mutation_postprocess` |
 | Point mutation (DeepSomatic) | Somatic SNV/indel calling and post-processing | `deepsomatic`, `point_mutation_postprocess` |
@@ -32,8 +32,6 @@ High-level dependencies between modules:
 - Nanomonsv is run per seqtype (HiFi and ONT), and the final step merges the two callsets.
 - The post-processed NanomonSV / ClairS / DeepSomatic callsets feed the annotation modules; SV annotation reclassification additionally consumes the copynumber per-haplotype reference tables.
 - Annotation resources (chain files, gene/repeat/centromere/segdup BEDs, gnomAD) are all optional — missing inputs silently skip the corresponding columns rather than failing the DAG.
-
-The full DAG and rule-file map are in [Workflow.md](./Workflow.md).
 
 ## Table of contents
 

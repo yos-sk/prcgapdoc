@@ -5,25 +5,37 @@ This page walks through an end-to-end PRCGAP run on a public tumor / normal pair
 The walkthrough assumes that:
 
 - PRCGAP has been cloned and the container images have been pulled — see [Usage.md](./Usage.md#installation).
-- The example data layout under `PRCGAP/test/resources/` is:
-  - `scripts/`   — the `download.sh` shown below.
-  - `reads/`     — ONT / HiFi BAMs produced by `download.sh`.
-  - `asm/`       — chr20 haplotype FASTAs produced by `download.sh`.
-  - `annotation/` — pre-generated annotation files (see [Preparation.md](./Preparation.md)).
-- A CHM13 reference (e.g. `chm13v2.0_maskedY_rCRS.fa`) has been obtained separately and placed under `test/resources/reference/`.
+- All commands in this page are executed from `PRCGAP/test/`, which ships with the helper scripts referenced below:
+  - `test_configure.sh` — wraps `setup_workflow.py` with every flag wired to the test fixtures.
+  - `config/test_samples.tsv` — pre-authored sample sheet for the HG008 chr20 pair.
+  - `resources/scripts/download_data.sh` — fetches the reads and the matched HG008N haplotype assemblies.
+  - `resources/scripts/download_reference.sh` — fetches the CHM13 and GRCh38 reference genomes.
+  - `resources/scripts/download_annotation.sh` — fetches the external annotation resources (CMRG, gnomAD, GENCODE/MANE).
+  - `resources/scripts/extract_haplotypes.sh` — reference recipe for slicing haplotype-derived annotations (DNA-NN, RepeatMasker, Liftoff, CenSat, SegDup, misassembly, liftover chains) down to the two chr20 contigs. **Not needed for this walkthrough** — the pre-built outputs are shipped via the PRCGAP repository (see §3a).
+  - `resources/scripts/README.md` — full per-script inventory, source URLs, and output paths.
 
-All commands below are relative to the PRCGAP repository root unless stated otherwise.
+> **Required tools on `PATH`.** The download / preparation scripts in steps 1–3 rely on a small set of command-line tools being resolvable from the shell:
+>
+> | Tool | Used by | Purpose |
+> |---|---|---|
+> | `python3` | `download_annotation.sh` (and the helpers it invokes) | Filtering CMRG / GENCODE tables |
+> | `wget` | `download_data.sh`, `download_reference.sh`, `download_annotation.sh` | Fetching reads, references, and annotation resources |
+> | `samtools` | `download_data.sh`, `download_reference.sh` | `view -F 2308` for chr20 slicing, `faidx` for indexing FASTAs and extracting chr20 contigs |
+> | `bgzip` | `download_annotation.sh` (and `extract_haplotypes.sh` if you run it) | Block-gzip compression of BED / VCF outputs |
+> | `tabix` | `download_annotation.sh` (and `extract_haplotypes.sh` if you run it) | Index generation for the bgzipped outputs |
+>
+> A quick `which python3 wget samtools bgzip tabix` should print a path for each before you start. The pipeline itself runs every tool inside Singularity / Apptainer images, but these helpers run on the host and need the tools available locally.
 
 ## 1. Fetch reads and assemblies
 
-The download script lives at `test/resources/scripts/download.sh` and **assumes it is executed from its own directory** (relative paths are written from `scripts/`). It pulls chr20 of HG008-T / HG008-N ONT + HiFi BAMs from the GIAB FTP and fetches the matched Verkko hap1 / hap2 assemblies for the normal sample, extracting the chr20 contig from each haplotype:
+From `PRCGAP/test/`, run the data-download helper. It pulls the GIAB HG008-T / HG008-N ONT-UL and PacBio HiFi BAMs (CHM13v2.0-aligned), slices each to chr20 with `samtools view -F 2308`, and fetches the matched Verkko 2.2 hap1 / hap2 assemblies for the normal sample (extracting `haplotype1-0000020` and `haplotype2-0000110`, the chr20 contigs):
 
 ```bash
 cd PRCGAP/test/resources/scripts
-bash download.sh
+bash download_data.sh
 ```
 
-After it completes the resource tree looks like:
+After it completes:
 
 ```
 test/resources/
@@ -34,97 +46,111 @@ test/resources/
 │   └── hifi/
 │       ├── HG008T.chr20.hifi.bam
 │       └── HG008N.chr20.hifi.bam
-├── asm/
-│   ├── HG008N.hap1.chr20.fa
-│   ├── HG008N.hap1.chr20.fa.fai
-│   ├── HG008N.hap2.chr20.fa
-│   └── HG008N.hap2.chr20.fa.fai
-├── annotation/                        # (pre-generated, see step 2)
-└── scripts/
-    └── download.sh
+└── asm/
+    ├── HG008N.hap1.fa{,.fai}        # full assembly (kept so faidx can resolve the chr20 contig)
+    ├── HG008N.hap2.fa{,.fai}
+    ├── HG008N.hap1.chr20.fa
+    └── HG008N.hap2.chr20.fa
 ```
 
-> **Note** — both the tumor and the normal rows use the **same** haplotype assemblies (built from the matched normal); this is the standard PRCGAP convention for tumor / normal pairs.
+> **Note** — both the tumor and the normal rows of the sample sheet use the **same** haplotype assemblies (built from the matched normal); this is the standard PRCGAP convention for tumor / normal pairs.
 
-## 2. Annotation files
+## 2. Fetch reference genomes
 
-PRCGAP consumes a set of annotation files keyed to the haplotype assemblies. Generating them is **not** part of PRCGAP — follow [Preparation.md](./Preparation.md) to produce them once, then place every output under `test/resources/annotation/` using the filenames below (sample stem `HG008N`):
-
-| File | Generated by (see Preparation.md) |
-|------|-----------------------------------|
-| `HG008N.hap1_dna-brnn.bed.gz` (+ `.tbi`) | DNA-NN on `HG008N.hap1.chr20.fa` |
-| `HG008N.hap2_dna-brnn.bed.gz` (+ `.tbi`) | DNA-NN on `HG008N.hap2.chr20.fa` |
-| `HG008N.simple_repeats.bed.gz` (+ `.tbi`) | RepeatMasker → simple-repeat extraction |
-| `HG008N.LINE1.bed.gz` (+ `.tbi`) | RepeatMasker → LINE1 extraction |
-| `HG008N.liftoff.gtf.gz` | Liftoff on the diploid assembly |
-
-These names match the flag values used in step 4 — keep them consistent or update the flags accordingly.
-
-## 3. Obtain the standard human reference genomes
-
-PRCGAP needs a base reference (for context and coordinate operations) in addition to the personalized assembly. For this example we use **T2T-CHM13 v2.0** (masked-Y, rCRS mitochondrion). Download it once and place it under `test/resources/reference/`:
+PRCGAP needs a base reference in addition to the personalized assembly (CHM13 for the primary coordinate system, GRCh38 for INDEL liftover via transanno). Run the reference-download helper from the same directory:
 
 ```bash
-mkdir -p test/resources/reference
-cd test/resources/reference
-# T2T-CHM13
-wget https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/analysis_set/chm13v2.0_maskedY_rCRS.fa.gz
-gunzip chm13v2.0_maskedY_rCRS.fa.gz
-samtools faidx chm13v2.0_maskedY_rCRS.fa
-
-# GRCh38
-wget --content-disposition 'https://api.gdc.cancer.gov/data/254f697d-310d-4d7d-a27b-27fbf767a834' -O GRCh38.d1.vd1.fa.tar.gz
-tar xvzf GRCh38.d1.vd1.fa.tar.gz
-samtools faidx GRCh38.d1.vd1.fa
-cd -
+bash download_reference.sh
 ```
 
-## 4. Author the sample sheet
+Outputs:
 
-Create `test/resources/samples.tsv` with one row per sample (tumor and normal share the same haplotype paths):
+```
+test/resources/reference/
+├── chm13v2.0_maskedY_rCRS.fa{,.fai}   # T2T-CHM13 v2.0 (masked Y + rCRS), Human Pangenomics S3
+└── GRCh38.d1.vd1.fa{,.fai}            # GRCh38.d1.vd1, GDC
+```
+
+## 3. Prepare annotation files
+
+PRCGAP consumes two groups of annotation resources, with different provenance:
+
+### 3a. Haplotype-derived annotations (pre-built, shipped with the repo)
+
+DNA-NN satellites, RepeatMasker (simple repeats, LINE1, full RMSK), Liftoff GTF / GFF, CenSat, SegDup, per-haplotype misassembly tracks, and the liftover chains to GRCh38 / CHM13 — these are all derived from the diploid assembly itself, **not** generated by PRCGAP. For this walkthrough the pre-built chr20 versions are distributed alongside the PRCGAP repository, so they are already present under `test/resources/annotation/` after cloning and you do **not** need to run `extract_haplotypes.sh`.
+
+If you want to derive the equivalent annotations for your own samples, the script ships as a reference recipe: produce the upstream tracks following [Preparation.md](./Preparation.md), edit the `*_SRC` paths at the top of `extract_haplotypes.sh`, and run it from `test/resources/scripts/`. It filters every track down to the two chr20 contigs (`haplotype1-0000020`, `haplotype2-0000110`), bgzip-compresses and tabix-indexes the BED / GFF outputs, and writes them under `test/resources/annotation/` with the filename scheme expected by `test_configure.sh` (`HG008N.<category>.<bed|gtf|gff>.gz`, plus `HG008N.to_{grch38,chm13}.chain`).
+
+### 3b. External annotations (downloaded)
+
+CMRG gene list, gnomAD v4.1 SV and SNV/INDEL sites, and the GENCODE v46 / MANE v1.3 chr20 transcript BED:
+
+```bash
+bash download_annotation.sh
+```
+
+This emits `cmrg_genes.list`, `gnomad.v4.1.sv.sites.bed.gz{,.tbi}`, `gnomad.genomes.v4.1.sites.chr20.vcf.bgz{,.tbi}`, and `gencode.v46.basic.annotation.chr20.mane.transcript.bed.gz` under `test/resources/annotation/`. The Python helpers `extract_cmrg_gene.py` and `proc_gencode_bed_mane_chr20.py` live next to the script and are invoked automatically.
+
+### 3c. Manual: Cancer Gene Census
+
+The Cancer Gene Census requires a COSMIC account and is **not** downloaded by the helper scripts. After registering at <https://cancer.sanger.ac.uk/cosmic/download/cosmic/v104/cancergenecensus>, place the TSV at:
+
+```
+test/resources/annotation/cancer_gene_census.tsv
+```
+
+See `test/resources/scripts/README.md` for the full per-file source / step table.
+
+## 4. Sample sheet
+
+The pre-authored sample sheet ships at `test/config/test_samples.tsv` and looks like:
 
 ```
 sample	type	ont	hifi	assembly_hap1	assembly_hap2
-HG008T	tumor	test/resources/reads/ont/HG008T.chr20.ont.bam	test/resources/reads/hifi/HG008T.chr20.hifi.bam	test/resources/asm/HG008N.hap1.chr20.fa	test/resources/asm/HG008N.hap2.chr20.fa
-HG008N	normal	test/resources/reads/ont/HG008N.chr20.ont.bam	test/resources/reads/hifi/HG008N.chr20.hifi.bam	test/resources/asm/HG008N.hap1.chr20.fa	test/resources/asm/HG008N.hap2.chr20.fa
+HG008T	tumor	../resources/reads/ont/HG008T.chr20.ont.bam	../resources/reads/hifi/HG008T.chr20.hifi.bam	../resources/asm/HG008N.hap1.chr20.fa	../resources/asm/HG008N.hap2.chr20.fa
+HG008N	normal	../resources/reads/ont/HG008N.chr20.ont.bam	../resources/reads/hifi/HG008N.chr20.hifi.bam	../resources/asm/HG008N.hap1.chr20.fa	../resources/asm/HG008N.hap2.chr20.fa
 ```
 
-Columns are tab-separated. See [Usage.md](./Usage.md#sample-sheet) for the full column reference and notes on multi-file inputs.
+Columns are tab-separated; paths are written relative to the sample sheet's directory (`test/config/`). See [Usage.md](./Usage.md#sample-sheet) for the full column reference and notes on multi-file inputs.
 
-## 5. Generate `config.yaml` and `run_workflow.sh`
+## 5. Generate `config.yaml` and `run_test.sh`
 
-Run `setup_workflow.py` from the PRCGAP repository root, pointing every annotation flag at the files in `test/resources/annotation/`:
+`test/test_configure.sh` is a thin wrapper around `setup_workflow.py` that points every annotation, reference, image, and resource flag at the files produced by the preceding steps. Run it from the `test/` directory:
 
 ```bash
-python3 setup_workflow.py \
-    --samplesheet test/resources/samples.tsv \
-    --reference   test/resources/reference/chm13v2.0_maskedY_rCRS.fa \
-    --hap1-satellite test/resources/annotation/HG008N.hap1_dna-brnn.bed.gz \
-    --hap2-satellite test/resources/annotation/HG008N.hap2_dna-brnn.bed.gz \
-    --simple-repeat  test/resources/annotation/HG008N.simple_repeats.bed.gz \
-    --line1-bed      test/resources/annotation/HG008N.LINE1.bed.gz \
-    --gtf-file       test/resources/annotation/HG008N.liftoff.gtf.gz \
-    --sex female \
-    --output-dir test/HG008 \
-    --output     config.yaml \
-    --runner     run_workflow.sh \
-    --singularity-bind "$(pwd)" \
+cd PRCGAP/test
+bash test_configure.sh
+```
+
+The script writes:
+
+- `test/config/test_config.yaml` — the resolved workflow config.
+- `test/run_test.sh` — the runner script.
+
+The `--singularity-bind` argument in `test_configure.sh` is set to the maintainer's Lustre roots (`/lustre1/home/yosakam2,/home/yosakam2`). **Edit this to match your environment** before running — list every filesystem root the workflow touches (reads, references, annotations, images, and the output directory). See [Usage.md](./Usage.md#singularity-bind-comma-separated-paths--local-run-bind-mounts) for guidance. The script also pins `--sex female` (matching HG008's donor sex) and a default per-rule thread / memory profile; both can be adjusted by editing the script.
+
+To attach or detach individual variant-annotation resources, comment / uncomment the corresponding flag inside `test_configure.sh` — every flag listed in [Usage.md](./Usage.md#variant-annotation-resource-flags-optional) is optional, so removing a line simply skips that annotation column.
+
+### HPC users — hand a Snakemake profile to `setup_workflow.py`
+
+For UGE / SLURM / PBS sites, scaffold a Snakemake profile first via cookiecutter — the full walkthrough (template choice, the 17 interactive prompts, post-generation editing for Lustre + Singularity sites) is in [Usage.md](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter). With the profile written under e.g. `profile/slurm/`, add a single line to `test_configure.sh` and re-run it:
+
+```bash
+python3 ../setup_workflow.py \
+    ... \
+    --profile profile/slurm \
     --force
 ```
 
-Notes:
-
-- `--singularity-bind "$(pwd)"` binds the entire PRCGAP working tree into the container so reads, assemblies, annotations, images, and the output directory are all visible. On a multi-filesystem host, list every root explicitly (see [Usage.md](./Usage.md#singularity-bind-comma-separated-paths--local-run-bind-mounts)).
-- `--sex female` matches HG008 (donor sex).
-- To attach the optional variant-annotation resources (chain files, gnomAD, segdup, etc.), add the corresponding flags listed in [Usage.md](./Usage.md#variant-annotation-resource-flags-optional). They are all optional — leaving them out simply skips the matching annotation columns.
+`setup_workflow.py` absolutises every path-valued key in the profile, embeds it into `test_config.yaml`, and emits a `run_test.sh` that invokes `snakemake --profile <absolute path>` automatically. See [`--profile`](./Usage.md#profile-path--hand-off-the-cookiecutter-generated-profile) in Usage.md for the full behaviour. When running under a profile you can usually drop `--singularity-bind` from the wrapper, since bind mounts are configured in the profile's `singularity-args` instead — list every Lustre / shared-filesystem root the workflow touches there.
 
 ## 6. Run the workflow
 
 ```bash
-bash run_workflow.sh
+bash run_test.sh
 ```
 
-Outputs land under `test/HG008/` as configured by `--output-dir`. For the full output layout (per-module subdirectories, callset filenames, log paths) see [Workflow.md](./Workflow.md#output-layout).
+Outputs land under `test/HG008/` as configured by `--output-dir` in `test_configure.sh`. For the full output layout (per-module subdirectories, callset filenames, log paths) see [Workflow.md](./Workflow.md#output-layout).
 
 ## References
 
