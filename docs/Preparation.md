@@ -219,7 +219,7 @@ The same workflow accepts the output of related tools (e.g. [BISER](https://gith
 
 ### 5.3. (Optional) Centromere / satellite annotation
 
-The DNA-NN BED produced in §5 (`--hap{1,2}-satellite`) is used **only inside the copynumber module to mask the per-haplotype reference**; the variant-annotation modules do **not** consume it. For SV / SNV / INDEL annotation, PRCGAP instead accepts a **finer-grained centromere / satellite BED on the diploid assembly** (`--censat-bed`), used to mark variants that fall inside specific satellite-array subtypes (HOR / αSat / HSat1A/B / HSat2 / HSat3 …) rather than the coarse `dna-brnn` classes.
+The DNA-NN BED produced in §4 (`--hap{1,2}-satellite`) is used **only inside the copynumber module to mask the per-haplotype reference**; the variant-annotation modules do **not** consume it. For SV / SNV / INDEL annotation, PRCGAP instead accepts a **finer-grained centromere / satellite BED on the diploid assembly** (`--censat-bed`), used to mark variants that fall inside specific satellite-array subtypes (HOR / αSat / HSat1A/B / HSat2 / HSat3 …) rather than the coarse `dna-brnn` classes.
 
 This finer annotation is produced with [alphaAnnotation](https://github.com/kmiga/alphaAnnotation), the same pipeline used by the T2T consortium to annotate CHM13's centromeres.
 

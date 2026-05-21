@@ -31,8 +31,8 @@ Every PRCGAP module ships as a pre-built Docker image on Docker Hub; you do **no
 
 ```bash
 git clone https://github.com/yos-sk/PRCGAP.git
-cd PRCGAP
-bash images/pull_images.sh
+cd PRCGAP/images
+bash pull_images.sh
 ```
 
 The script populates `images/` with one `.sif` per module:
