@@ -47,5 +47,6 @@ Yoshitaka Sakamoto
 yosakam@ncc.go.jp
 
 ## Citation
-*Pending*
+
+Sakamoto Y, Ochi Y, Kogure Y, Kato S, Sato-Otsubo A, Sugawa M, Tanaka Y, Tsujimura T, Mikami T, Nagae G, Chiba K, Okada A, Ito Y, Suzuki H, Aburatani H, Koga Y, Kato I, Takita J, Mano H, Ogawa S, Kataoka K, Kato M, Shiraishi Y. Personalized reference genome-based pipeline reveals comprehensive haplotype-resolved views of cancer genomes. *bioRxiv*. 2026. doi: [10.64898/2026.05.28.728591](https://doi.org/10.64898/2026.05.28.728591)
 
