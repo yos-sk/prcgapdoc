@@ -44,7 +44,7 @@ High-level dependencies between modules:
 ## Contact
 
 Yoshitaka Sakamoto
-yosakam@ncc.go.jp
+yosakam2@ncc.go.jp
 
 ## Citation
 
