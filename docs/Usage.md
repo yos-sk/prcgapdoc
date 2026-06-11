@@ -131,7 +131,7 @@ Cookiecutter then asks **17 questions** in sequence. Suggested answers for a SLU
 [10/17] sbatch_defaults:                             # site-specific, e.g. "partition=cpuq account=myacct"
         # other options (qos, time, mail-user, …) can also be appended here as space-separated key=value
 [11/17] cluster_sidecar_help:                        # informational; press Enter
-[12/17] Select cluster_sidecar                       # ► 2 (yes) on Snakemake 7.x — uses one sidecar
+[12/17] Select cluster_sidecar                       # ► 1 (yes) on Snakemake 7.x — uses one sidecar
         1 - yes                                       #     process to batch squeue/sacct calls
         2 - no
 [13/17] cluster_name:                                # optional free-form label; leave empty unless you
