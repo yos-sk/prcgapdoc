@@ -31,6 +31,21 @@
     padding-left: var(--vp-sidebar-width) !important;
     padding-right: 32px !important;
   }
+
+  /* The navbar uses the same 1440px formulas: the title box shrinks toward
+   * ~32px while "PRCGAP documentation" (nowrap) overflows into the search box.
+   * Re-assert the stable 272px geometry for the title, content and divider. */
+  .VPNavBar.has-sidebar .title {
+    padding-left: 32px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+  .VPNavBar.has-sidebar .content {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 32px !important;
+  }
+  .VPNavBar.has-sidebar .divider {
+    padding-left: var(--vp-sidebar-width) !important;
+  }
 }
 
 @media (min-width: 960px) {
