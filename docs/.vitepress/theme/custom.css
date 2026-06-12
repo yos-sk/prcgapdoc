@@ -10,6 +10,29 @@
   --vp-layout-max-width: 1920px;
 }
 
+/* ---------- Keep the sidebar from colliding with the content ----------
+ * VitePress switches the sidebar and content to "wide" formulas at a
+ * hard-coded `min-width: 1440px` breakpoint, and those formulas assume the
+ * layout max-width is also the breakpoint. Because we raised
+ * --vp-layout-max-width to 1920px, every viewport between 1440px and 1920px
+ * computes a sidebar that shrinks toward ~32px while its nav text overflows
+ * to the right — overlapping the content column (which also starts near 32px).
+ *
+ * Pin the sidebar to its stable 272px width and align the content offset to
+ * match for the whole 960–1919px range. At >=1920px VitePress's native
+ * formulas are self-consistent again, so we let them take over.
+ */
+@media (min-width: 960px) and (max-width: 1919.98px) {
+  .VPSidebar {
+    padding-left: 32px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+  .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width) !important;
+    padding-right: 32px !important;
+  }
+}
+
 @media (min-width: 960px) {
   .VPDoc .container {
     max-width: 1100px !important;
