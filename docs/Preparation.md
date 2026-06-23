@@ -2,7 +2,7 @@
 
 PRCGAP runs on a **personalized reference genome** — a diploid de novo assembly of the same individual — together with a set of annotation files keyed to that assembly. Generating these inputs is **not** part of PRCGAP itself.
 
-This page lists the inputs PRCGAP requires and shows representative commands for producing each one. The exact tool versions and parameters can be adjusted to your sample type and infrastructure; consult each tool's documentation for the full option list.
+This page lists the inputs PRCGAP requires and shows two routes to producing them. The recommended route is the companion **[assembly_workflow](https://github.com/yos-sk/assembly_workflow)** pipeline, which generates almost all of these inputs end-to-end. The step-by-step sections that follow document the equivalent commands tool by tool, for when you want to understand, customize, or run an individual step on its own. The exact tool versions and parameters can be adjusted to your sample type and infrastructure; consult each tool's documentation for the full option list.
 
 ## Required inputs
 
@@ -15,6 +15,102 @@ This page lists the inputs PRCGAP requires and shows representative commands for
 | Lifted gene annotation GTF | `{sample}.liftoff.gtf.gz` | `config.yaml` `gtf_file` |
 | Sample sex | `male` / `female` | `config.yaml` `sex` |
 | Base reference FASTA | `CHM13.fa` (or equivalent) | `setup_workflow.py --reference` |
+
+## Recommended route — the assembly_workflow pipeline
+
+Rather than running each tool below by hand, you can produce all of these inputs with the companion Snakemake pipeline **[assembly_workflow](https://github.com/yos-sk/assembly_workflow)**. Every tool dependency ships as a Singularity/Apptainer image, so the only host requirements are Snakemake and a container runtime. It adapts to the data you have (HiFi only, ONT only, or both; with or without Hi-C / Pore-C / trio phasing) and runs three modules:
+
+- **Assembly** — phased haplotype assemblies with Hifiasm or Verkko, then contig filtering and renaming.
+- **Annotation** — Liftoff genes, RepeatMasker repeats (simple repeats + LINE1), dna-nn centromeric satellites, SEDEF segmental duplications, CenSat centromere/satellite annotation, and chain files to GRCh38 / CHM13.
+- **Evaluation** — assembly QC and misassembly detection (Flagger / Inspector / NucFlag), which supplies the optional per-haplotype misassembly BEDs.
+
+These outputs map onto the PRCGAP inputs as follows:
+
+| PRCGAP input | assembly_workflow module / output |
+|--------------|-----------------------------------|
+| `assembly_hap1` / `assembly_hap2` | Assembly → filtered haplotype FASTAs (`{sample}.hap{1,2}.filt.fa`) |
+| `hap1_satellite` / `hap2_satellite` | Annotation → dna-nn alpha-satellite BED (per haplotype) |
+| `simple_repeat`, `line1_bed`, `--repeat-masker-bed` | Annotation → RepeatMasker |
+| `gtf_file` / `gff_file` | Annotation → Liftoff |
+| `--chain-to-grch38` / `--chain-to-chm13` | Annotation → chain files |
+| `--segdup-bed` | Annotation → SEDEF |
+| `--censat-bed` | Annotation → CenSat |
+| `--misassembly-hap{1,2}-bed` | Evaluation → Flagger / Inspector / NucFlag |
+
+> **Prerequisites.** Like PRCGAP, assembly_workflow runs every tool inside Singularity/Apptainer images, so the host only needs **Snakemake**, a **container runtime (Apptainer/Singularity)**, and — for cluster execution — **cookiecutter** (plus the `python3` + `pyyaml` used by `setup_workflow.py`). These are the same host tools listed under [Usage → Prerequisites](./Usage.md#prerequisites), so if you have already set up an environment to run PRCGAP you generally need nothing new here.
+
+In outline, you clone the repository, pull the images, build a sample sheet (`set_sample_sheet.py`), generate the config and runner (`setup_workflow.py`), then run it:
+
+```bash
+# 0. Clone the repository and enter it (run all later commands from here).
+git clone https://github.com/yos-sk/assembly_workflow.git
+cd assembly_workflow
+
+# 1. Pull the Singularity images (run from inside images/)
+cd images && bash pull_image.sh
+cd ..
+
+# 2. (Cluster only) generate a Snakemake profile. If you run locally, please skip this step.
+template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
+cookiecutter --output-dir profile $template # Please set the environment
+# Pin per-job cores to the allocation (overrides Snakemake's `--cores all`);
+# re-apply after each regen. See Setup step 2 for the rationale. SLURM:
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+ncores="${{SLURM_CPUS_PER_TASK:-1}}"
+exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
+eval "$exec_job"
+EOF
+# SGE: same body but use $NSLOTS (write profile/sge/sge-jobscript.sh) — see Setup step 2.
+
+# 3. Download references (first time), build the sample sheet, then generate config + runner.
+bash download_reference.sh reference
+( cd reference && singularity exec ../images/compleasm.sif compleasm download primates --odb odb10 )  # -> reference/mb_downloads
+( cd workflow/scripts/annotation/censat/db && bash download.sh )   # CenSat HMM/k-mer DB (annotation)
+SHEET=config/samples.tsv
+
+# (a) --run-modules all: generate the assembly from reads, then annotate and evaluate it.
+python3 set_sample_sheet.py --samplesheet $SHEET --sample S1 --sex male --run-modules all \
+    --assembler hifiasm \
+    --hifi /data/S1.hifi.bam --ont-ul /data/S1.ont_ul.bam \
+    --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
+
+# (b) --run-modules evaluation,annotation: skip assembly generation and run only
+#     evaluation + annotation on existing assemblies (pass them via --hap1/2-assembly).
+python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female \
+    --run-modules evaluation,annotation --assembler verkko \
+    --hap1-assembly /data/S2.hap1.fa --hap2-assembly /data/S2.hap2.fa \
+    --hifi /data/S2.hifi.bam        # second sample appended to the same sheet (optional)
+#    (or copy config/samples.tsv.template and edit by hand; see "Sample sheet" below)
+
+python3 setup_workflow.py \
+    --samplesheet $SHEET \
+    --output config/config.yaml \      # generated config (default: config/config.yaml)
+    --runner run_workflow.sh \         # generated runner script (default: run_workflow.sh)
+    --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
+    --grch38 reference/GRCh38.d1.vd1.fa \
+    --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
+    --grch38-centromeres reference/centromeres.txt.gz \
+    --grch38-exclusions reference/GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed \
+    --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
+    --compleasm-library reference/mb_downloads \
+    --images-dir images \
+    --singularity-bind "$HOME" \   # bind input/output tree into the containers; see "Setup" for the HPC symlink caveat
+    --profile profile/slurm        # omit for local execution
+#   add --force (-f) when re-generating over an existing config / runner
+
+# 4. Run (default target = all enabled modules per sample)
+./run_workflow.sh
+```
+
+See the [assembly_workflow README](https://github.com/yos-sk/assembly_workflow/blob/main/README.md) and its [Tutorial](https://github.com/yos-sk/assembly_workflow/blob/main/docs/TUTORIAL.md) for the full setup (reference downloads, cluster profiles, per-rule resources, and the complete `setup_workflow.py` flag list).
+
+The remaining sections document the nearly equivalent steps individually — use them when you build an input outside the pipeline, or to see exactly what each module does.
 
 ## 1. De novo assembly
 

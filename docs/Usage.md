@@ -25,6 +25,23 @@ PRCGAP needs three host-side tools:
 
 > **WARNING — Snakemake 8.x is not supported.** Snakemake 8 changes several CLI flags (`--sdm` / `--software-deployment-method` replaces `--use-singularity`, profile format differs, etc.) and PRCGAP has only been validated against 7.32.4. Pin the version explicitly when you create the environment.
 
+A quick install with [mamba](https://github.com/mamba-org/mamba):
+
+```bash
+# Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
+mamba create -n PRCGAP -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml
+
+# Singularity/Apptainer — Linux only (not available on macOS).
+# On an HPC it is often provided instead via: module load apptainer
+mamba install -n PRCGAP -c conda-forge apptainer
+
+# cookiecutter (optional, only for generating a cluster profile)
+mamba install -n PRCGAP -c conda-forge cookiecutter
+
+# Activate the environment.
+mamba activate assembly_workflow # or just put the env on PATH: export PATH=PATH_to_assembly_workflow_env:$PATH"
+```
+
 ### Clone the repository and pull container images
 
 Every PRCGAP module ships as a pre-built Docker image on Docker Hub; you do **not** need to build any image locally. `images/pull_images.sh` pulls each one and converts it to a Singularity (`.sif`) file under `PRCGAP/images/`:
