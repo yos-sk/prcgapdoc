@@ -21,7 +21,7 @@ export default defineConfig({
       { text: 'Get Started', link: '/Introduction' },
       {
         text: 'GitHub',
-        link: 'https://github.com/yos-sk/prcgapdoc',
+        link: 'https://github.com/yos-sk/PRCGAP',
       },
     ],
 
