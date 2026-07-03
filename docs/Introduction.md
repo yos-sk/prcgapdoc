@@ -8,6 +8,8 @@ PRCGAP (<u>**P**</u>ersonalized <u>**R**</u>eference genome-based <u>**C**</u>an
 - **Inputs:** a tumor / normal pair of ONT and HiFi reads (BAM or FASTQ.gz), plus the corresponding hap1 / hap2 assembly FASTAs.
 - **Outputs:** point mutation, structural variant (SV), copy number, and methylation callsets, each annotated against gene / repeat / centromere / segdup / gnomAD references and lifted to GRCh38 / CHM13 for variants.
 
+![PRCGAP pipeline overview](./plot/pipeline.png)
+
 PRCGAP is responsible for variant calling, post-processing, and annotation on the personalized reference genome. Generating the personalized reference genome and the accompanying annotation files is treated as a separate, upstream step; see [Preparation.md](./Preparation.md) for how those inputs are produced and supplied to PRCGAP.
 
 ## Analysis modules

@@ -23,7 +23,7 @@ PRCGAP needs three host-side tools:
 - [Apptainer](https://apptainer.org/) — the container runtime (Singularity is also supported transparently).
 - [cookiecutter](https://cookiecutter.readthedocs.io/) — optional, only needed when scaffolding a fresh cluster profile (step 3 above).
 
-> **WARNING — Snakemake 8.x is not supported.** Snakemake 8 changes several CLI flags (`--sdm` / `--software-deployment-method` replaces `--use-singularity`, profile format differs, etc.) and PRCGAP has only been validated against 7.32.4. Pin the version explicitly when you create the environment.
+> **WARNING — Snakemake >= 8 is not supported.** Snakemake 8 changes several CLI flags (`--sdm` / `--software-deployment-method` replaces `--use-singularity`, profile format differs, etc.) and PRCGAP has only been validated against 7.32.4. Pin the version explicitly when you create the environment.
 
 A quick install with [mamba](https://github.com/mamba-org/mamba):
 
@@ -31,7 +31,8 @@ A quick install with [mamba](https://github.com/mamba-org/mamba):
 # Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
 mamba create -n PRCGAP -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml
 
-# Singularity/Apptainer — Linux only (not available on macOS).
+# Singularity/Apptainer — OPTIONAL: skip if you already have it (system install
+# or `module load apptainer`/`singularity`)
 # On an HPC it is often provided instead via: module load apptainer
 mamba install -n PRCGAP -c conda-forge apptainer
 
@@ -71,6 +72,18 @@ The script populates `images/` with one `.sif` per module:
 ## Sample sheet
 
 PRCGAP reads samples from a TSV file with one row per sample (tumor and normal are separate rows that share assembly paths).
+
+The recommended way to produce this file is the bundled **`set_sample_sheet.py`** helper, which builds the sheet for one tumor–normal pair, validates the entries, absolutises the data paths, and writes the canonical columns the workflow expects. Name the two samples, point each at its ONT and HiFi data, and give the shared assembly once:
+
+```bash
+python3 set_sample_sheet.py \
+    --tumor  {tumor_name}  --tumor-ont  /data/{tumor}_ont.bam  --tumor-hifi  /data/{tumor}_hifi.bam \
+    --normal {normal_name} --normal-ont /data/{normal}_ont.bam --normal-hifi /data/{normal}_hifi.bam \
+    --assembly-hap1 /data/{normal}.hap1.fa --assembly-hap2 /data/{normal}.hap2.fa \
+    -o config/samples.tsv
+```
+
+`--tumor-ont` / `--tumor-hifi` / `--normal-ont` / `--normal-hifi` are repeatable and also accept comma-separated lists when a sample spans multiple files (see [Multiple input files per sample](#multiple-input-files-per-sample)). Other useful flags: `--input draft.tsv` to validate/format an existing draft instead of building one, `--no-check-exists` when the data lives on a cluster and is not visible locally, and `--force` to overwrite an existing output. The columns it writes are described below — you can also author the TSV by hand.
 
 Required columns:
 
@@ -177,52 +190,25 @@ config/<profile_name>/
 
 > **TIP** — re-running `cookiecutter $template --output-dir config -f --replay` regenerates the same profile non-interactively (using `settings.json`); useful for sharing the recipe across teammates without re-typing the 17 answers.
 
-### Post-generation editing — example: SLURM + Lustre site
+### Pin per-job cores to the allocation
 
-The interactive answers cover the basics; site-specific tuning then happens in `config/<profile_name>/config.yaml`. Lustre is a parallel filesystem common at HPC sites, and it has two characteristics that matter for Snakemake:
+By default the generated `slurm-jobscript.sh` launches each job's in-container Snakemake with `--cores all`, which makes it grab **every** core on the compute node rather than the `--cpus-per-task` the scheduler actually allocated. Overwrite the jobscript so it rewrites `--cores all` to the allocated core count (`$SLURM_CPUS_PER_TASK`). Re-apply this after each profile regeneration, since cookiecutter overwrites the file:
 
-1. **File-visibility latency between nodes.** A job that writes an output on one compute node may take a few seconds to a few tens of seconds before that file is visible on another node (or on the login node where Snakemake itself runs). The default `latency-wait` (5 s) is usually too short.
-2. **Bind mounts must cover every Lustre tree the workflow touches** — reads, references, annotations, images, *and* the run directory itself, otherwise Apptainer / Singularity will see them as missing inside the container.
-
-A minimal `<profile>/config.yaml` for a SLURM + Lustre site looks like:
-
-```yaml
-# <profile>/config.yaml
-cluster: "sbatch
-  --parsable
-  --partition={resources.partition}
-  --account=my_account
-  --cpus-per-task={threads}
-  --mem={resources.mem_mb}
-  --time={resources.runtime}
-  --job-name=smk-{rule}-{wildcards}
-  --output=logs/cluster/{rule}/{wildcards}.%j.out
-  --error=logs/cluster/{rule}/{wildcards}.%j.err"
-
-cluster-status: "./slurm_status.sh"
-cluster-cancel: "scancel"
-
-jobs: 64                   # max concurrent SLURM jobs
-latency-wait: 120          # seconds — bumped from default 5 for Lustre
-restart-times: 1
-keep-going: True
-rerun-incomplete: True
-use-singularity: True
-singularity-args: "-B /lustre,/lustre/scratch,/lustre/projects,/home -e"
-
-default-resources:
-  - partition=cpu
-  - mem_mb=8000
-  - runtime=240          # minutes
+```bash
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+ncores="${{SLURM_CPUS_PER_TASK:-1}}"
+exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
+eval "$exec_job"
+EOF
 ```
 
-- `singularity-args` lists every Lustre mount root you need visible inside the container. Add any extra trees referenced by your sample sheet / config / reference paths.
-- `latency-wait: 120` is a conservative starting point on Lustre; raise further if you see `MissingOutputException` warnings on healthy jobs.
-- `default-resources` are cluster-side fallbacks; per-rule `threads` / `mem_mb` from `config.yaml` (set via `setup_workflow.py --*-threads / --*-mem-mb`) override these.
-
-Once the profile directory exists, hand it to `setup_workflow.py --profile <path>`; the generated runner script will invoke `snakemake --profile <absolute path>` automatically.
-
-> Sites without Lustre (NFS, BeeGFS, local-only): the same profile works — leave `singularity-args` pointing at your shared roots and tune `latency-wait` to what your filesystem actually needs.
+For SGE/UGE use the same body but read the allocation from `$NSLOTS` and write it to `profile/sge/sge-jobscript.sh` instead.
 
 ## Generating `config.yaml` and `run_worklow.sh` with `setup_workflow.py`
 
@@ -231,17 +217,20 @@ Once the profile directory exists, hand it to `setup_workflow.py --profile <path
 ```bash
 python3 setup_workflow.py \
     --samplesheet /path/to/samples.tsv \
-    --reference /path/to/CHM13.fa \
+    --chm13-fasta /path/to/CHM13.fa \
     --hap1-satellite /path/to/{sample}.hap1_dna-brnn.bed.gz \
     --hap2-satellite /path/to/{sample}.hap2_dna-brnn.bed.gz \
     --sex male/female \
-    --gtf-file /path/to/{sample}.liftoff.gtf.gz 
+    --gtf-file /path/to/{sample}.liftoff.gtf.gz \
     --simple-repeat /path/to/{sample}.simple_repeats.bed.gz \
     --line1-bed /path/to/{sample}.LINE1.bed.gz \
+    --chm13-censat /path/to/chm13v2.0_censat_v2.1.bed.gz \  # recommended — see "Copy-number plot resources" below
     --output-dir /path/to/output \
     --output config.yaml \
-    -runner run_worklow.sh \
-    --force 
+    --runner run_workflow.sh \
+    --singularity-bind $HOME \ # bind input/output tree into the containers
+    --profile profile/slurm        # omit for local execution
+#   add --force (-f) when re-generating over an existing config / runner
 ```
 
 ### Optional arguments
@@ -260,7 +249,7 @@ When `--profile` is omitted, `setup_workflow.py` produces a local-execution runn
 # After cookiecutter has written config/prcgap-slurm/
 python3 setup_workflow.py \
     ... \
-    --profile config/prcgap-slurm \
+    --profile profile/slurm \
     --jobs 64                                  # max concurrent SLURM jobs (matches `jobs:` in the profile)
 ```
 
@@ -278,7 +267,7 @@ Rules-of-thumb for what to bind:
 
 - Every directory referenced by **`samplesheet.tsv`** (ONT / HiFi BAMs or FASTQs, `assembly_hap1`, `assembly_hap2`).
 - The **reference** (`--chm13-fasta`, `--grch38-fasta`).
-- Every **annotation resource** path you passed (`--gff-file`, `--chain-to-*`, `--repeat-masker-bed`, `--segdup-bed`, `--censat-bed`, `--misassembly-hap*-bed`, `--cancer-gene-census-tsv`, `--cmrg-gene-tsv`, `--gencode-transcript-bed`, `--gnomad-*`).
+- Every **annotation resource** path you passed (`--gff-file`, `--chain-to-*`, `--repeat-masker-bed`, `--segdup-bed`, `--censat-bed`, `--misassembly-hap*-bed`, `--cancer-gene-census-tsv`, `--cmrg-gene-list`, `--gencode-transcript-bed`, `--gnomad-*`), plus the copy-number plot resource `--chm13-censat`.
 - The **images directory** holding the `.sif` files (`--images-dir`, default `images/`).
 - The **output directory** (`--output-dir`).
 - Any **symlink targets** — if a file in your sample sheet is a symlink, you need to bind both the symlink's location *and* the real path it points to. Tools like `realpath` are useful for spotting these (`realpath samples.tsv ... | xargs -n1 dirname | sort -u`).
@@ -305,6 +294,22 @@ The annotation flags map directly to the outputs described in [Preparation.md](.
 | `--gtf-file` | Liftoff `*.liftoff.gtf.gz` (consumed by `nanomonsv insert_classify`) |
 | `--sex` | Sample sex (`male` / `female`) — affects sex-chromosome handling |
 
+### Copy-number plot resource — `--chm13-censat` (recommended)
+
+| Flag | config key | Used by |
+|------|------------|---------|
+| `--chm13-censat` | `chm13_censat` | Copy-number plot — CHM13 cenSat v2.1 BED (`.gz`) |
+
+`--chm13-censat` is technically optional, but **we recommend supplying it.** The copy-number module masks centromeric / satellite regions on the plot; where the personalized assembly leaves gaps in those regions, this BED fills them with the CHM13 reference satellite annotation, so the copy-number plot renders cleanly across centromeres instead of showing spurious gaps. CHM13 chromosome lengths are derived at plot time from `--chm13-fasta`, so no separate length file is needed.
+
+Pass the CHM13 cenSat v2.1 BED (the same `chm13v2.0_censat_v2.1.bed` used elsewhere for CHM13 annotation, bgzipped):
+
+```bash
+python3 setup_workflow.py \
+    ... \
+    --chm13-censat /path/to/chm13v2.0_censat_v2.1.bed.gz
+```
+
 ### Variant-annotation resource flags (optional)
 
 These flags drive the SV and SNV/INDEL annotation modules. **All keys are optional**; if a flag is left empty (the default), the corresponding annotation column is silently skipped — the DAG still resolves, the chain just emits fewer columns.
@@ -320,7 +325,7 @@ These flags drive the SV and SNV/INDEL annotation modules. **All keys are option
 | `--misassembly-hap1-bed` | `misassembly_hap1_bed` | SV / SNV / INDEL misassembly overlap (hap1) |
 | `--misassembly-hap2-bed` | `misassembly_hap2_bed` | SV / SNV / INDEL misassembly overlap (hap2) |
 | `--cancer-gene-census-tsv` | `cancer_gene_census_tsv` | SV / SNV / INDEL gene-level cancer annotation |
-| `--cmrg-gene-tsv` | `cmrg_gene_tsv` | SNV / INDEL CMRG gene annotation |
+| `--cmrg-gene-list` | `cmrg_gene_tsv` | SNV / INDEL CMRG gene annotation (one HGNC gene symbol per line) |
 | `--gencode-transcript-bed` | `gencode_transcript_bed` | SNV / INDEL GENCODE transcript overlay |
 | `--gnomad-bed` | `gnomad_bed` | SV gnomAD annotation (requires `--chain-to-grch38`) |
 | `--gnomad-vcf` | `gnomad_vcf` | SNV / INDEL gnomAD annotation (requires `--chain-to-grch38`) |
@@ -338,6 +343,7 @@ python3 setup_workflow.py \
     --line1-bed /path/to/{sample}.LINE1.bed.gz \
     --gtf-file /path/to/{sample}.liftoff.gtf.gz \
     --sex male \
+    --chm13-censat /path/to/chm13v2.0_censat_v2.1.bed.gz \
     --gff-file /path/to/{sample}.liftoff.gff.gz \
     --chain-to-grch38 /path/to/{sample}.to_grch38.chain \
     --chain-to-chm13  /path/to/{sample}.to_chm13.chain \
@@ -347,15 +353,15 @@ python3 setup_workflow.py \
     --misassembly-hap1-bed /path/to/{sample}.hap1.misassembly.bed \
     --misassembly-hap2-bed /path/to/{sample}.hap2.misassembly.bed \
     --cancer-gene-census-tsv /path/to/cancer_gene_census.tsv \
-    --cmrg-gene-tsv /path/to/cmrg_genes.tsv \
+    --cmrg-gene-list /path/to/cmrg_genes.list \
     --gencode-transcript-bed /path/to/gencode.transcript.bed.gz \
     --gnomad-bed /path/to/gnomad_sv.bed.gz \
     --gnomad-vcf /path/to/gnomad.vcf.gz \
     --grch38-fasta /path/to/GRCh38.fa \
     --output-dir /path/to/output \
     --output config.yaml \
-    --runner run_workflow.sh \
-    --force
+    --runner run_workflow.sh
+# add --force (-f) when re-generating over an existing config / runner
 ```
 
 ## Running the workflow

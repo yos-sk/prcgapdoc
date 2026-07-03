@@ -14,7 +14,7 @@ This page lists the inputs PRCGAP requires and shows two routes to producing the
 | LINE1 BED | `{sample}.LINE1.bed.gz` | `config.yaml` `line1_bed` |
 | Lifted gene annotation GTF | `{sample}.liftoff.gtf.gz` | `config.yaml` `gtf_file` |
 | Sample sex | `male` / `female` | `config.yaml` `sex` |
-| Base reference FASTA | `CHM13.fa` (or equivalent) | `setup_workflow.py --reference` |
+| Base reference FASTA | `CHM13.fa` (or equivalent) | `setup_workflow.py --chm13-fasta` |
 
 ## Recommended route — the assembly_workflow pipeline
 
@@ -108,7 +108,7 @@ python3 setup_workflow.py \
 ./run_workflow.sh
 ```
 
-See the [assembly_workflow README](https://github.com/yos-sk/assembly_workflow/blob/main/README.md) and its [Tutorial](https://github.com/yos-sk/assembly_workflow/blob/main/docs/TUTORIAL.md) for the full setup (reference downloads, cluster profiles, per-rule resources, and the complete `setup_workflow.py` flag list).
+See the [assembly_workflow README](https://github.com/yos-sk/assembly_workflow/blob/main/README.md) and its [Tutorial](https://github.com/yos-sk/assembly_workflow/blob/main/README.md) for the full setup (reference downloads, cluster profiles, per-rule resources, and the complete `setup_workflow.py` flag list).
 
 The remaining sections document the nearly equivalent steps individually — use them when you build an input outside the pipeline, or to see exactly what each module does.
 
@@ -260,7 +260,7 @@ PRCGAP's SV and SNV/INDEL annotation modules consume an additional set of resour
 | `--censat-bed` | CenSat / alphaAnnotation derived centromere/satellite BED on the diploid assembly |
 | `--misassembly-hap{1,2}-bed` | Misassembly intervals from QC tools (e.g. NucFreq / VerityMap) on each haplotype |
 | `--cancer-gene-census-tsv` | COSMIC Cancer Gene Census TSV |
-| `--cmrg-gene-tsv` | CMRG (Challenging Medically Relevant Genes) gene list (https://github.com/usnistgov/cmrg-benchmarkset-manuscript/blob/master/data/gene_coords/unsorted/GRCh38_mrg_full_gene.bed)|
+| `--cmrg-gene-list` | CMRG (Challenging Medically Relevant Genes) gene list — one HGNC gene symbol per line (derived from https://github.com/usnistgov/cmrg-benchmarkset-manuscript/blob/master/data/gene_coords/unsorted/GRCh38_mrg_full_gene.bed)|
 | `--gencode-transcript-bed` | GENCODE transcript BED.gz |
 | `--gnomad-bed` | gnomAD SV BED.gz (tabix-indexed, https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/genome_sv/gnomad.v4.1.sv.sites.bed.gz) |
 | `--gnomad-vcf` | gnomAD SNV/INDEL VCF.gz (tabix-indexed, please see https://gnomad.broadinstitute.org/downloads) |
@@ -345,7 +345,7 @@ Once steps 1–6 are complete, the resulting files map onto PRCGAP entries as fo
 | `--misassembly-hap1-bed` → `misassembly_hap1_bed` | `setup_workflow.py` flag → `config.yaml` | hap1 misassembly BED (step 6) |
 | `--misassembly-hap2-bed` → `misassembly_hap2_bed` | `setup_workflow.py` flag → `config.yaml` | hap2 misassembly BED (step 6) |
 | `--cancer-gene-census-tsv` → `cancer_gene_census_tsv` | `setup_workflow.py` flag → `config.yaml` | COSMIC Cancer Gene Census TSV (step 6) |
-| `--cmrg-gene-tsv` → `cmrg_gene_tsv` | `setup_workflow.py` flag → `config.yaml` | CMRG gene list TSV (step 6) |
+| `--cmrg-gene-list` → `cmrg_gene_tsv` | `setup_workflow.py` flag → `config.yaml` | CMRG gene list (one HGNC gene symbol per line) (step 6) |
 | `--gencode-transcript-bed` → `gencode_transcript_bed` | `setup_workflow.py` flag → `config.yaml` | GENCODE transcript BED.gz (step 6) |
 | `--gnomad-bed` → `gnomad_bed` | `setup_workflow.py` flag → `config.yaml` | gnomAD SV BED.gz (step 6; requires `--chain-to-grch38`) |
 | `--gnomad-vcf` → `gnomad_vcf` | `setup_workflow.py` flag → `config.yaml` | gnomAD SNV/INDEL VCF.gz (step 6; requires `--chain-to-grch38`) |
@@ -355,7 +355,7 @@ For tumor / normal pairs, **both samples must use the same haplotype assemblies*
 
 ## Reference genome
 
-In addition to the personalized assembly, PRCGAP requires a base reference (e.g. T2T-CHM13) for context and coordinate operations. Supply it directly via `setup_workflow.py --reference /path/to/CHM13.fa`. The reference is independent of the per-sample assembly and annotation files above.
+In addition to the personalized assembly, PRCGAP requires a base reference (e.g. T2T-CHM13) for context and coordinate operations. Supply it directly via `setup_workflow.py --chm13-fasta /path/to/CHM13.fa`. The reference is independent of the per-sample assembly and annotation files above.
 
 ## Next step
 
