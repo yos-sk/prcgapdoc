@@ -215,7 +215,7 @@ To attach or detach individual variant-annotation resources, comment / uncomment
 bash run_test.sh
 ```
 
-On an HPC cluster (jobs submitted through a Snakemake profile), the full chr20 walkthrough takes roughly **1.5 hours** end-to-end. Wall-clock time varies with scheduler queueing and the per-rule resources you allocate; a single workstation will be slower.
+On an HPC cluster (jobs submitted through a Snakemake profile), the full chr20 walkthrough takes roughly **1.5 hours** end-to-end. On a single desktop workstation, where rules run sequentially rather than in parallel, expect it to take **several hours**. Wall-clock time also varies with scheduler queueing and the per-rule resources you allocate.
 
 Outputs land under `test/HG008/` as configured by `--output-dir` in `test_configure.sh`. For the full output layout (per-module subdirectories, callset filenames, log paths) see [Workflow.md](./Workflow.md#output-layout).
 
