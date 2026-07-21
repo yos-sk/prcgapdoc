@@ -53,6 +53,8 @@ cd PRCGAP/images
 bash pull_images.sh
 ```
 
+Installation (this `git clone` → `.sif` creation) takes about **30 minutes**, dominated by pulling and converting the container images; the exact time depends on your network bandwidth and disk speed.
+
 The script populates `images/` with one `.sif` per module:
 
 | Image | Used by |
