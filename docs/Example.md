@@ -1,47 +1,42 @@
 # Example
 
-This page walks through an end-to-end PRCGAP run on a public tumor / normal pair, restricted to **chromosome 20** to keep the dataset small enough to drive on a single workstation. The sample is **HG008** — a broadly-consented matched tumor / normal pair (pancreatic ductal adenocarcinoma cell line and matched normal tissues) developed by NIST's [Cancer Genome in a Bottle](https://www.nist.gov/programs-projects/cancer-genome-bottle) project and characterised in [McDaniel *et al.*, *Scientific Data* (2025)](https://doi.org/10.1038/s41597-025-05438-2). The walkthrough uses `HG008-T` (tumor) and `HG008-N` (normal) PacBio HiFi and ONT-UL reads from the GIAB FTP, together with a Verkko diploid assembly of HG008-N released by the same project. See [References](#references) at the bottom of this page for the full citations.
+This page walks through an end-to-end PRCGAP run on a public tumor / normal pair, restricted to **chromosome 20** so the dataset is small enough to drive on a single workstation. The sample is **HG008** — a broadly-consented matched tumor / normal pair (pancreatic ductal adenocarcinoma cell line and matched normal tissues) developed by NIST's [Cancer Genome in a Bottle](https://www.nist.gov/programs-projects/cancer-genome-bottle) project and characterised in [McDaniel *et al.*, *Scientific Data* (2025)](https://doi.org/10.1038/s41597-025-05438-2). It uses `HG008-T` (tumor) and `HG008-N` (normal) PacBio HiFi and ONT-UL reads from the GIAB FTP, together with a Verkko 2.2 diploid assembly of HG008-N released by the same project. See [References](#references) at the bottom for the full citations.
 
 The walkthrough assumes that:
 
-- The host prerequisites are installed (Snakemake 7.x, Apptainer / Singularity; cookiecutter for clusters) — see [Usage.md](./Usage.md#installation). Cloning the repository and pulling the images is covered in [step 0](#_0-clone-prcgap-and-pull-the-container-images) below.
-- Apart from step 0 (which clones the repo and `cd`s into it), all commands in this page are executed from `PRCGAP/test/`, which ships with the helper scripts referenced below:
+- The host prerequisites are installed (Snakemake 7.x, Apptainer / Singularity; cookiecutter for clusters) — see [Usage → Installation](./Usage.md#installation). Cloning the repository and pulling the images is [step 0](#_0-clone-prcgap-and-pull-the-container-images) below.
+- Apart from step 0, all commands run from **`PRCGAP/test/HG008/`**, which ships with:
   - `test_configure.sh` — wraps `setup_workflow.py` with every flag wired to the test fixtures.
-  - `config/test_samples.tsv` — pre-authored sample sheet for the HG008 chr20 pair.
   - `resources/scripts/download_data.sh` — fetches the reads and the matched HG008N haplotype assemblies.
-  - `resources/scripts/download_reference.sh` — fetches the CHM13 and GRCh38 reference genomes.
-  - `resources/scripts/download_annotation.sh` — fetches the external annotation resources (CMRG, gnomAD, GENCODE/MANE).
+  - `resources/scripts/extract_chr20_reference.sh` — cuts the genome-wide references down to chr20.
+  - `resources/scripts/download_annotation.sh` — fetches the external annotation resources (CMRG, gnomAD).
+  - `resources/annotation/HG008N.*` — the pre-built chr20 annotation fixtures.
   - `resources/scripts/README.md` — full per-script inventory, source URLs, and output paths.
 
-> **Required tools on `PATH`.** The download / preparation scripts in steps 1–3 rely on a small set of command-line tools being resolvable from the shell:
+> **Required tools on `PATH`.** The download / preparation helpers in steps 1–3 need a few command-line tools on the host (the pipeline itself runs everything in containers):
 >
 > | Tool | Used by | Purpose |
 > |---|---|---|
-> | `python3` | `download_annotation.sh` (and the helpers it invokes) | Filtering CMRG / GENCODE tables |
-> | `wget` | `download_data.sh`, `download_reference.sh`, `download_annotation.sh` | Fetching reads, references, and annotation resources |
-> | `samtools` | `download_data.sh`, `download_reference.sh` | `view -F 2308` for chr20 slicing, `faidx` for indexing FASTAs and extracting chr20 contigs |
-> | `bgzip` | `download_annotation.sh` | Block-gzip compression of BED / VCF outputs |
-> | `tabix` | `download_annotation.sh` | Index generation for the bgzipped outputs |
+> | `python3` | `download_annotation.sh` and its helpers | Filtering the CMRG table |
+> | `wget` | all three download helpers | Fetching reads, references, and annotation resources |
+> | `samtools` | `download_data.sh`, `download_reference.sh`, `extract_chr20_reference.sh` | `view -F 2308` for chr20 slicing, `faidx` for indexing and extracting contigs |
+> | `bgzip` / `tabix` | `download_annotation.sh`, `download_reference.sh` | Block-gzip compression and indexing |
 >
-> A quick `which python3 wget samtools bgzip tabix` should print a path for each before you start. The pipeline itself runs every tool inside Singularity / Apptainer images, but these helpers run on the host and need the tools available locally.
+> `which python3 wget samtools bgzip tabix` should print a path for each before you start.
 
 ## 0. Clone PRCGAP and pull the container images
-
-Clone the repository, pull the per-module Singularity / Apptainer images, then move into `test/` — every later step runs from `PRCGAP/test/`, so paths below are written relative to it (no `PRCGAP/` prefix):
 
 ```bash
 git clone https://github.com/yos-sk/PRCGAP.git
 (cd PRCGAP/images && bash pull_images.sh)
-cd PRCGAP/test
+cd PRCGAP/test/HG008
 ```
 
-See [Usage.md](./Usage.md#installation) for the full installation details (prerequisites, the image list, and overriding individual images).
+See [Usage → Installation](./Usage.md#installation) for the full detail (prerequisites, the image list, overriding individual images). Pulling and converting the images takes about **30 minutes**.
 
 ## 1. Fetch reads and assemblies
 
-From `PRCGAP/test/`, run the data-download helper (the script `cd`s into its own directory). It pulls the GIAB HG008-T / HG008-N ONT-UL and PacBio HiFi BAMs (CHM13v2.0-aligned), slices each to chr20 with `samtools view -F 2308`, and fetches the matched Verkko 2.2 hap1 / hap2 assemblies for the normal sample (extracting `haplotype1-0000020` and `haplotype2-0000110`, the chr20 contigs):
-
-> **Before you download** — make sure `samtools`, `bgzip`, and `tabix` are all on your `PATH`. The download helpers call `samtools` here to slice the BAMs and index the FASTAs, and `bgzip` / `tabix` in [step 3](#_3-prepare-annotation-files) to compress and index the annotation BED / VCF outputs; any of them missing will make a helper fail partway through. Confirm with `which samtools bgzip tabix` before running.
+From `test/HG008/`, run the data-download helper (it `cd`s into its own directory). It pulls the GIAB HG008-T / HG008-N ONT-UL and PacBio HiFi BAMs (CHM13v2.0-aligned), slices each to chr20 with `samtools view -F 2308` (dropping unmapped, secondary, and supplementary alignments), and fetches the matched Verkko 2.2 hap1 / hap2 assemblies of the normal, extracting `haplotype1-0000020` and `haplotype2-0000110` — the chr20 contigs:
 
 ```bash
 (cd resources/scripts && bash download_data.sh)
@@ -50,174 +45,269 @@ From `PRCGAP/test/`, run the data-download helper (the script `cd`s into its own
 After it completes:
 
 ```
-test/resources/
+test/HG008/resources/
 ├── reads/
-│   ├── ont/
-│   │   ├── HG008T.chr20.ont.bam
-│   │   └── HG008N.chr20.ont.bam
-│   └── hifi/
-│       ├── HG008T.chr20.hifi.bam
-│       └── HG008N.chr20.hifi.bam
+│   ├── ont/HG008{T,N}.chr20.ont.bam
+│   └── hifi/HG008{T,N}.chr20.hifi.bam
 └── asm/
-    ├── HG008N.hap1.fa{,.fai}        # full assembly (kept so faidx can resolve the chr20 contig)
-    ├── HG008N.hap2.fa{,.fai}
-    ├── HG008N.hap1.chr20.fa
-    └── HG008N.hap2.chr20.fa
+    ├── HG008N.hap{1,2}.fa{,.fai}      # full assembly (kept so faidx can resolve the chr20 contig)
+    └── HG008N.hap{1,2}.chr20.fa
 ```
 
 > **Note** — both the tumor and the normal rows of the sample sheet use the **same** haplotype assemblies (built from the matched normal); this is the standard PRCGAP convention for tumor / normal pairs.
 
-## 2. Fetch reference genomes
+## 2. Fetch and trim the reference genomes
 
-PRCGAP needs a base reference in addition to the personalized assembly (CHM13 for the primary coordinate system, GRCh38 for INDEL liftover via transanno). Run the reference-download helper from the same directory:
+First fetch the genome-wide references into the repository's `resource/reference/` (this is the same one-time step every PRCGAP installation needs — see [Quick start → step 3](./QuickStart.md#_3-fetch-the-references-once-per-installation)):
 
 ```bash
-(cd resources/scripts && bash download_reference.sh)
+bash ../../resource/scripts/download_reference.sh
 ```
 
-Outputs:
+Then cut them down to chr20 for this test case:
+
+```bash
+(cd resources/scripts && bash extract_chr20_reference.sh)
+```
+
+The assembly is chr20-only, so aligning it against 3 Gb of reference is waste: the minimap2 index dominates both `liftoff_hap` and `chain_files_hap`, and restricting the reference makes it roughly 1/50 the size. The GTF has to be cut as well — with a chr20-only FASTA, liftoff would still try to lift every other chromosome's genes and find no sequence for them.
+
+Outputs. Every cut carries a **`_chr20` suffix**, so a chr20 slice can never be mistaken for the genome-wide original it came from:
 
 ```
-test/resources/reference/
-├── chm13v2.0_maskedY_rCRS.fa{,.fai}   # T2T-CHM13 v2.0 (masked Y + rCRS), Human Pangenomics S3
-└── GRCh38.d1.vd1.fa{,.fai}            # GRCh38.d1.vd1, GDC
+test/HG008/resources/reference/
+├── chm13v2.0_maskedY_rCRS_chr20.fa{,.fai}                        # T2T-CHM13 v2.0
+├── GRCh38.d1.vd1_chr20.fa{,.fai}                                 # GRCh38.d1.vd1
+├── Homo_sapiens.GRCh38.Ensembl.112.chr.format_chr20.gtf          # gene models
+├── chm13v2.0_censat_v2.1_chr20.bed.gz{,.tbi}
+├── centromeres_chr20.txt.gz
+└── GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2_chr20.bed
 ```
+
+`test_configure.sh` points at these suffixed names. The genome-wide originals stay in `PRCGAP/resource/reference/`, where `download_reference.sh` wrote them, and are read from there by every other run in the repository; `--mane-summary` is read from there directly too, since it is not coordinate-based and needs no cut.
 
 ## 3. Prepare annotation files
 
-PRCGAP consumes two groups of annotation resources, with different provenance:
+The test consumes two groups of annotation resources with different provenance.
 
-### 3a. Haplotype-derived annotations (pre-built, shipped with the repo)
+### 3a. Haplotype-derived annotations: shipped with the repository
 
-DNA-NN satellites, RepeatMasker (simple repeats, LINE1, full RMSK), Liftoff GTF / GFF, CenSat, SegDup, per-haplotype misassembly tracks, and the liftover chains to GRCh38 / CHM13 — these are all derived from the diploid assembly itself, **not** generated by PRCGAP. For this walkthrough the pre-built chr20 versions are distributed alongside the PRCGAP repository, so they are already present under `test/resources/annotation/` and no action is required from you. The filename scheme matches what `test_configure.sh` expects (`HG008N.<category>.<bed|gtf|gff>.gz`, plus `HG008N.to_{grch38,chm13}.chain`). See [Preparation.md](./Preparation.md) for the upstream steps used to generate these tracks, if you want to derive equivalents for your own samples.
+The chr20 versions of the per-assembly annotation are distributed with PRCGAP, under `test/HG008/resources/annotation/`, so **no action is required**:
 
-### 3b. External annotations (downloaded)
+| Fixture | Passed as |
+|---------|-----------|
+| `HG008N.hap{1,2}_dna-brnn.bed.gz{,.tbi}` | `--hap1-satellite` / `--hap2-satellite` |
+| `HG008N.simple_repeats.bed.gz{,.tbi}` | `--simple-repeat` |
+| `HG008N.LINE1.bed.gz{,.tbi}` | `--line1-bed` |
+| `HG008N.to_{grch38,chm13}.chain` | `--chain-to-grch38` / `--chain-to-chm13` |
+| `HG008N.rmsk.bed.gz{,.tbi}` | `--repeat-masker-bed` |
+| `HG008N.segdup.bed.gz{,.tbi}` | `--segdup-bed` |
+| `HG008N.censat.bed.gz{,.tbi}` | `--censat-bed` |
+| `HG008N.misassembly_hap{1,2}.bed.gz{,.tbi}` | `--misassembly-hap{1,2}-bed` |
 
-CMRG gene list, gnomAD v4.1 SV and SNV/INDEL sites, and the GENCODE v46 / MANE v1.3 chr20 transcript BED:
+Using fixtures for the first four keeps this test focused on the calling pipeline: `test_configure.sh` passes `--no-run-dna-brnn --no-run-chain-files --no-run-line1 --no-run-simple-repeat` so the workflow imports them instead of rebuilding them. The last four are the deeper annotation PRCGAP never builds ([Preparation §3](./Preparation.md#_3-optional-deeper-annotation)).
+
+The gene annotation has no fixture and no switch — liftoff always runs, which is why step 2's GRCh38 FASTA and GTF are required.
+
+### 3b. External annotations: downloaded
+
+CMRG gene list and gnomAD v4.1 SV + SNV/INDEL sites:
 
 ```bash
 (cd resources/scripts && bash download_annotation.sh)
 ```
 
-This emits `cmrg_genes.list`, `gnomad.v4.1.sv.sites.bed.gz{,.tbi}`, `gnomad.genomes.v4.1.sites.chr20.vcf.bgz{,.tbi}`, and `gencode.v46.basic.annotation.chr20.mane.transcript.bed.gz` under `test/resources/annotation/`. The Python helpers `extract_cmrg_gene.py` and `proc_gencode_bed_mane_chr20.py` live next to the script and are invoked automatically.
+This writes `cmrg_genes.list`, `gnomad.v4.1.sv.sites.bed.gz{,.tbi}`, and `gnomad.genomes.v4.1.sites.chr20.vcf.bgz{,.tbi}` under `resources/annotation/` — the three files `test_configure.sh` passes on. The Python helpers `extract_cmrg_gene.py` and `proc_gencode_bed_mane_chr20.py` live next to the script and are invoked automatically; the latter's GENCODE/MANE transcript BED is a leftover from an earlier annotation route and is no longer consumed (`--mane-summary` replaced it).
 
 ### 3c. Manual: Cancer Gene Census
 
-The Cancer Gene Census requires a COSMIC account and is **not** downloaded by the helper scripts. After registering at <https://cancer.sanger.ac.uk/cosmic/download/cosmic/v104/cancergenecensus>, place the TSV at:
+The Cancer Gene Census requires a COSMIC account and is **not** downloaded by the helpers. After registering at <https://cancer.sanger.ac.uk/cosmic/download/cosmic/v104/cancergenecensus>, place the TSV at:
 
 ```
-test/resources/annotation/cancer_gene_census.tsv
+test/HG008/resources/annotation/cancer_gene_census.tsv
 ```
 
-See `test/resources/scripts/README.md` for the full per-file source / step table.
+Or drop `--cancer-gene-census-tsv` from `test_configure.sh` and run without it — the `cgc` column is then filled with the not-evaluated placeholder. See `resources/scripts/README.md` for the full per-file source table.
 
-## 4. (Optional) Author a Snakemake profile for HPC users with `cookiecutter`
+## 4. (Optional) Author a Snakemake profile for HPC
 
-This section is only for UGE / SLURM / PBS clusters. On a single workstation you can **skip it entirely** and run locally. If you do submit to a scheduler, scaffold a Snakemake profile here, then hand it to `test_configure.sh` in [step 6](#_6-generate-config-yaml-and-run-test-sh) via `--profile`. The full walkthrough (template choice, the 17 interactive prompts, post-generation editing for Lustre + Singularity sites) is in [Usage.md](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter):
+This section is only for UGE / SLURM / PBS clusters. On a single workstation you can **skip it entirely**. The full walkthrough — template choice, the 17 interactive prompts, and the jobscript patch that pins each job's cores to its allocation — is in [Usage → cluster profile](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter):
 
 ```bash
-template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
-cookiecutter --output-dir profile $template
-
-[1/17]  profile_name (slurm):                        # accept default or e.g. prcgap-slurm
-[2/17]  Select use_singularity                       # ► 2 (True)  — PRCGAP runs every rule in a container
-        1 - False
-        2 - True
-[3/17]  Select use_conda                             # ► 1 (False) — PRCGAP does not use conda envs
-        1 - False
-        2 - True
-[4/17]  jobs (500):                                  # max concurrent SLURM jobs; 64–500 is typical
-[5/17]  restart_times (0):                           # 1 is reasonable; retries transient SLURM failures once
-[6/17]  max_status_checks_per_second (10):           # keep default unless your scheduler is rate-limited
-[7/17]  max_jobs_per_second (10):                    # keep default
-[8/17]  latency_wait (5):                            # bump to 60–120 on Lustre / NFS (see note below)
-[9/17]  Select print_shell_commands                  # ► 1 (False) — keep snakemake's log compact
-[10/17] sbatch_defaults:                             # site-specific, e.g. "partition=cpuq account=myacct"
-        # other options (qos, time, mail-user, …) can also be appended here as space-separated key=value
-[11/17] cluster_sidecar_help:                        # informational; press Enter
-[12/17] Select cluster_sidecar                       # ► 1 (yes) on Snakemake 7.x — uses one sidecar
-        1 - yes                                       #     process to batch squeue/sacct calls
-        2 - no
-[13/17] cluster_name:                                # optional free-form label; leave empty unless you
-                                                     #   run multiple clusters from the same login node
-[14/17] cluster_jobname ({rule}.{jobid}):            # accept default; expands per job
-[15/17] cluster_logpath (logs/slurm/{rule}/%j):      # accept default; paths are created automatically
-[16/17] cluster_config_help:                         # informational; press Enter
-[17/17] cluster_config:                              # leave empty — deprecated in favor of resources
+cookiecutter --output-dir ../../profile gh:Snakemake-Profiles/slurm   # or .../sge
 ```
 
-After scaffolding, pin each job's cores to the scheduler allocation by overwriting the generated jobscript — by default it launches the in-container Snakemake with `--cores all`, which grabs every core on the node instead of the `--cpus-per-task` you requested. Re-apply this after every profile regeneration, since cookiecutter overwrites the file:
+::: warning `test_configure.sh` ships with `--profile ../../profile/slurm`
+The profile directory is site-specific and is not distributed with the repository, so that path does not exist in a fresh clone. **Point it at the profile you scaffolded above, or delete the `--profile` line** to run locally.
+:::
 
-```bash
-cat > profile/slurm/slurm-jobscript.sh <<'EOF'
-#!/bin/bash
-# properties = {properties}
-exec_job=$(cat <<'SMK_EXEC_JOB'
-{exec_job}
-SMK_EXEC_JOB
-)
-ncores="${{SLURM_CPUS_PER_TASK:-1}}"
-exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
-eval "$exec_job"
-EOF
-```
+## 5. Generate `config.yaml` and the runner
 
-(For SGE/UGE use the same body but read the allocation from `$NSLOTS` and write it to `profile/sge/sge-jobscript.sh`.) With the profile written under e.g. `profile/slurm/`, add `--profile` when you run `test_configure.sh` in [step 6](#_6-generate-config-yaml-and-run-test-sh):
-
-
-## 5. Sample sheet
-
-The pre-authored sample sheet ships at `test/config/test_samples.tsv` and looks like:
-
-```
-sample	type	ont	hifi	assembly_hap1	assembly_hap2
-HG008T	tumor	../resources/reads/ont/HG008T.chr20.ont.bam	../resources/reads/hifi/HG008T.chr20.hifi.bam	../resources/asm/HG008N.hap1.chr20.fa	../resources/asm/HG008N.hap2.chr20.fa
-HG008N	normal	../resources/reads/ont/HG008N.chr20.ont.bam	../resources/reads/hifi/HG008N.chr20.hifi.bam	../resources/asm/HG008N.hap1.chr20.fa	../resources/asm/HG008N.hap2.chr20.fa
-```
-
-Columns are tab-separated; paths are written relative to the sample sheet's directory (`test/config/`). See [Usage.md](./Usage.md#sample-sheet) for the full column reference and notes on multi-file inputs.
-
-You do not need to edit this file for the walkthrough, but it can equally be regenerated with the bundled `set_sample_sheet.py` helper (see [Usage.md](./Usage.md#sample-sheet)). Run it from `test/config/` so the relative paths resolve, and pass `--no-absolutize` to keep them relative like the shipped version:
-
-```bash
-(cd config && python3 ../../set_sample_sheet.py \
-    --tumor  HG008T --tumor-ont  ../resources/reads/ont/HG008T.chr20.ont.bam   --tumor-hifi  ../resources/reads/hifi/HG008T.chr20.hifi.bam \
-    --normal HG008N --normal-ont ../resources/reads/ont/HG008N.chr20.ont.bam   --normal-hifi ../resources/reads/hifi/HG008N.chr20.hifi.bam \
-    --assembly-hap1 ../resources/asm/HG008N.hap1.chr20.fa --assembly-hap2 ../resources/asm/HG008N.hap2.chr20.fa \
-    --no-absolutize --force \
-    -o test_samples.tsv)
-```
-
-(Drop `--no-absolutize` to write absolute paths instead, which is the safer choice if you will run the workflow from a different directory.)
-
-## 6. Generate `config.yaml` and `run_test.sh`
-
-`test_configure.sh` is a thin wrapper around `setup_workflow.py` that points every annotation, reference, image, and resource flag at the files produced by the preceding steps. Run it from `PRCGAP/test/`:
+`test_configure.sh` is a thin wrapper around `setup_workflow.py` that points every read, reference, annotation, image, and resource flag at the files produced by the preceding steps, and sizes each rule for chr20 rather than for a whole genome. Run it from `test/HG008/`:
 
 ```bash
 bash test_configure.sh
 ```
 
-> **HPC users** — if you set up a Snakemake profile with cookiecutter in the [optional section above](#_4-optional-author-a-snakemake-profile-for-hpc-users-with-cookiecutter), add `--profile profile/slurm` (the path you scaffolded) to the `setup_workflow.py` call inside `test_configure.sh` before running it, so the generated `run_test.sh` submits jobs through the scheduler. On a single workstation, leave it as-is to run locally.
+It writes:
 
-The script writes:
+- `config/samples_HG008.tsv` — the sample sheet (written by the `--tumor` / `--normal` options; there is no separate sheet step)
+- `config/config_HG008.yaml` — the resolved workflow config
+- `run_HG008.sh` — the runner script
+- `./HG008/` — the output directory
 
-- `test/config/test_config.yaml` — the resolved workflow config.
-- `test/run_test.sh` — the runner script.
+Before running it, check three things in the script:
 
-**Edit `--singularity-bind` to match your environment** before running — list every filesystem root the workflow touches (reads, references, annotations, images, and the output directory). See [Usage.md](./Usage.md#singularity-bind-comma-separated-paths--local-run-bind-mounts) for guidance. The script also pins `--sex female` (matching HG008's donor sex) and a default per-rule thread / memory profile; both can be adjusted by editing the script.
+1. **`--singularity-bind`** — it defaults to `$HOME` (plus `$HOME`'s symlink target, if it is one). Extend it to cover every filesystem root your reads, references, and output directory live under. See [Usage → `--singularity-bind`](./Usage.md#bind-mounts).
+2. **`--profile`** — see the warning in step 4.
+3. **`--sex female`** — matches HG008's donor sex. `--copynumber-plot-sex-chrom false` keeps chrX / chrY off the plot, since this is a chr20-only run.
 
-To attach or detach individual variant-annotation resources, comment / uncomment the corresponding flag inside `test_configure.sh` — every flag listed in [Usage.md](./Usage.md#variant-annotation-resource-flags-optional) is optional, so removing a line simply skips that annotation column.
-
-## 7. Run the workflow
+Two environment switches change what the run exercises:
 
 ```bash
-bash run_test.sh
+MUTATION_CALLER=clairs bash test_configure.sh   # ClairS instead of DeepSomatic
+MUTATION_CALLER=both   bash test_configure.sh   # both callers, cross-checked
 ```
 
-On an HPC cluster (jobs submitted through a Snakemake profile), the full chr20 walkthrough takes roughly **1.5 hours** end-to-end. On a single desktop workstation, where rules run sequentially rather than in parallel, expect it to take **several hours**. Wall-clock time also varies with scheduler queueing and the per-rule resources you allocate.
+Point-mutation calling runs on HiFi only, because `--mutation-seqtypes` defaults to `primary`. Add `--mutation-seqtypes all` to call on ONT as well. To attach or detach an individual annotation resource, comment out its flag — every one listed in [Options → Variant-annotation resources](./Options.md#variant-annotation-resources-all-optional) is optional, so removing a line just skips that column.
 
-Outputs land under `test/HG008/` as configured by `--output-dir` in `test_configure.sh`. For the full output layout (per-module subdirectories, callset filenames, log paths) see [Workflow.md](./Workflow.md#output-layout).
+## 6. Run the workflow
+
+```bash
+bash run_HG008.sh          # local execution
+sbatch run_HG008.sh        # with a SLURM profile — the runner carries its own #SBATCH header
+qsub   run_HG008.sh        # with an SGE / UGE profile
+```
+
+On an HPC cluster (jobs submitted through a Snakemake profile) the full chr20 walkthrough takes roughly **1–2 hours** end-to-end, measured. Wall-clock time varies with scheduler queueing and the per-rule resources you allocate; a single workstation, where rules run sequentially rather than in parallel, will be slower.
+
+## 7. What a finished run produces
+
+Outputs land under `test/HG008/HG008/` (the `--output-dir` in `test_configure.sh`). The listing below is an actual completed run of the default configuration: HiFi + ONT reads, DeepSomatic, point mutations on HiFi.
+
+```
+test/HG008/HG008/
+├── annotation/
+│   ├── references/liftoff/GRCh38.{fa,fa.fai,gtf,gtf_db}
+│   └── HG008N/liftoff/HG008N.liftoff.gff.gz{,.tbi}
+│                      HG008N.liftoff.gtf.gz
+│
+├── bam_refiner/
+│   ├── HG008N/hifi/HG008N_bam_refined.sorted.bam{,.bai}
+│   │                HG008N_kmer_ratio.txt
+│   │                bam_refiner_result.tsv.gz, bam_refiner.log.gz
+│   ├── HG008N/ont/  (same five files)
+│   ├── HG008N/kmer/hap{1,2}_cnt_kmerposition.bed.gz{,.tbi}
+│   │                hap{1,2}_list.txt.gz
+│   └── HG008T/{hifi,ont}/  (same five files each)
+│
+├── methylation/
+│   ├── HG008{T,N}/hifi/output/HG008{T,N}_methylation.{combined,hap1,hap2}.bed.gz{,.tbi}
+│   │                            HG008{T,N}_methylation.{combined,hap1,hap2}.bw
+│   └── HG008{T,N}/ont/output/  HG008{T,N}_methylation.bed.gz{,.tbi}
+│
+├── copynumber/HG008T/output/
+│       HG008T.copynumber.png                    ← the plot below
+│       HG008T.hap{1,2}.copynumber.tsv
+│       HG008T.hap{1,2}.cbs.txt
+│       HG008T.hap{1,2}.cbs.split.txt
+│       HG008T.hap{1,2}.ploidy
+│       HG008N.hap{1,2}.ref.table
+│
+├── nanomonsv/{hifi,ont}/
+│       HG008{T,N}.{bp_info,deletion,insertion}.sorted.bed.gz{,.tbi}
+│       HG008{T,N}.rearrangement.sorted.bedpe.gz{,.tbi}
+│       HG008T.nanomonsv.result.txt, .result.vcf
+│       HG008T.nanomonsv.supporting_read.txt, .sbnd.result.txt
+│       HG008T.simple_repeat_scores.tsv
+│       HG008T.nanomonsv.result.filt.txt
+│       HG008T.nanomonsv.new_result.sv_typed.txt
+│       HG008T.nanomonsv.{group,pair}_info.txt
+│       HG008T.nanomonsv.new_result.sv_typed.insert_classified.txt
+│
+├── deepsomatic/HG008T/hifi/output.vcf.gz{,.tbi}
+├── deepsomatic_post/HG008T/hifi/
+│       HG008T.haplotyped.bed
+│       output.vcf.gz, output.tabix.vcf.gz{,.tbi}
+│       pileup/HG008T_pileup.bed.gz{,.tbi}
+│       realign/realign.bam{,.bai}, realign/parsed_vcf.bed
+│       haplotyping.log
+│
+├── annotate_common/HG008N/liftoff.gene.bed.gz{,.tbi}
+├── annotate_sv/HG008T/{hifi,ont}/
+│       HG008T.PRCGAP.nanomonsv_results.annotated.txt
+│       HG008T.PRCGAP.nanomonsv_results.annotated_gnomad.txt
+│       HG008T.PRCGAP.nanomonsv_results.reclassified.txt
+├── annotate_snv/HG008T/deepsomatic/hifi/HG008T.deepsomatic.snv.annotated.txt
+├── annotate_indel/HG008T/deepsomatic/hifi/HG008T.deepsomatic.indel.annotated.txt
+│
+├── benchmarks/<module>/…      # per-rule wall time and peak RSS
+└── logs/<module>/…            # per-rule logs (+ logs/slurm/<rule>/<jobid>.{out,err})
+```
+
+The four final callsets:
+
+| Result | Path |
+|--------|------|
+| Copy number | `copynumber/HG008T/output/HG008T.copynumber.png` and `HG008T.hap{1,2}.cbs.txt` |
+| Structural variants | `annotate_sv/HG008T/{hifi,ont}/HG008T.PRCGAP.nanomonsv_results.reclassified.txt` |
+| SNVs | `annotate_snv/HG008T/deepsomatic/hifi/HG008T.deepsomatic.snv.annotated.txt` |
+| INDELs | `annotate_indel/HG008T/deepsomatic/hifi/HG008T.deepsomatic.indel.annotated.txt` |
+
+Note what is **not** in the tree: `annotation/HG008N/{dna_nn,line1,simple_repeat,chain_files}/` is absent because this configuration imports those four from the fixtures instead of building them; every `workspace/` directory, `deepsomatic_scatter/`, `bwa_index/`, and `copynumber/reference/` are gone because PRCGAP deletes the scratch a successful run no longer needs (pass `--debug` to keep it). See [Workflow → Scratch removed on success](./Workflow.md#scratch-removed-on-success).
+
+### The copy-number plot
+
+`copynumber/HG008T/output/HG008T.copynumber.png` from the run above:
+
+![HG008T chr20 copy number, both haplotypes](./plot/hg008_chr20_copynumber.png)
+
+One panel per haplotype, x-axis in chr20 coordinates, with the centromere / satellite interval shaded. The dashed line is the estimated tumor ploidy per haplotype (1 for both here, from `HG008T.hap{1,2}.ploidy`); the dark trace is the per-bin copy number from `HG008T.hap{1,2}.copynumber.tsv` and the flat magenta line the CBS segmentation from `HG008T.hap{1,2}.cbs.txt`. Haplotype 1 gains a copy across the distal half of the q arm while haplotype 2 is lost across the p arm — the kind of haplotype-resolved asymmetry that a diploid-reference pipeline would report as a single averaged trace.
+
+The centromeric shading is where `--chm13-censat` earns its keep: the personalized assembly leaves gaps there, and the CHM13 reference satellite annotation fills them so the plot renders continuously instead of showing spurious dropouts. Panel labels come from `--copynumber-hap{1,2}-label`.
+
+## 8. Variants of the test run
+
+The published `test_configure.sh` covers the HiFi + ONT, fixture-annotation case. Three edits turn it into the other configurations:
+
+### HiFi-only or ONT-only
+
+Delete the read flags for the seqtype you want to drop:
+
+```bash
+# HiFi-only: remove these two lines
+    --tumor-ont   resources/reads/ont/HG008T.chr20.ont.bam \
+    --normal-ont  resources/reads/ont/HG008N.chr20.ont.bam \
+
+# ONT-only: remove these two instead
+    --tumor-hifi  resources/reads/hifi/HG008T.chr20.hifi.bam \
+    --normal-hifi resources/reads/hifi/HG008N.chr20.hifi.bam \
+```
+
+Also change `--output-dir`, `--output`, and `--runner` so the variant gets its own directory and config. In the HiFi-only run the `ont` branches simply disappear from the tree — no `bam_refiner/*/ont/`, no `methylation/*/ont/`, no `nanomonsv/ont/`, no `annotate_sv/HG008T/ont/`. The ONT-only run is the mirror image, with point mutations and copy number falling back to ONT since it is then the only shared seqtype. If you also switch to ClairS, add `--clairs-model ont_r10_dorado_sup_5khz_ssrs`.
+
+### Minimal inputs: let PRCGAP build the annotation
+
+To exercise the in-workflow annotation instead of the fixtures, swap the four switches and drop the four fixture paths they supersede:
+
+```bash
+# replace
+    --no-run-dna-brnn --no-run-chain-files \
+    --no-run-line1 --no-run-simple-repeat \
+# with
+    --run-dna-brnn --run-chain-files \
+    --run-line1 --run-simple-repeat \
+    --grch38-centromeres resources/reference/centromeres_chr20.txt.gz \
+    --grch38-exclusions  resources/reference/GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2_chr20.bed \
+
+# and drop these four (the generated files supersede them anyway)
+    --hap1-satellite … --hap2-satellite … --simple-repeat … --line1-bed …
+    --chain-to-grch38 … --chain-to-chm13 …
+```
+
+The chain-file step needs `--grch38-centromeres` and `--grch38-exclusions` for reference masking; both come from step 2. `resource/line1/*.fa` must exist — `download_reference.sh` builds them, or run `resource/scripts/build_line1_resources.sh` directly.
+
+The run then populates `annotation/HG008N/{dna_nn,line1,simple_repeat,chain_files}/` as well, and the optional annotation databases (RepeatMasker / segdup / cenSat / misassembly) can be dropped entirely — they are `_opt_path()` in the rules, so the annotate steps just skip those columns. That configuration proves the pipeline needs nothing beyond reads, an assembly, and the references.
 
 ## References
 
@@ -226,6 +316,7 @@ Outputs land under `test/HG008/` as configured by `--output-dir` in `test_config
 
 ## Related pages
 
-- [Preparation.md](./Preparation.md) — Producing the personalized reference and annotation files
-- [Usage.md](./Usage.md) — Sample sheet, `setup_workflow.py`, run options
-- [Workflow.md](./Workflow.md) — DAG, rule files, output layout
+- [Quick start](./QuickStart.md) — the minimal path for your own data
+- [Options](./Options.md) — every `setup_workflow.py` flag and `config.yaml` key
+- [Workflow](./Workflow.md) — modules, rule files, full output layout
+- [Preparation](./Preparation.md) — the optional deeper annotation set

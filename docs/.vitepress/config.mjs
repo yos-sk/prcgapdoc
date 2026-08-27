@@ -18,7 +18,8 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Get Started', link: '/Introduction' },
+      { text: 'Quick start', link: '/QuickStart' },
+      { text: 'Options', link: '/Options' },
       {
         text: 'GitHub',
         link: 'https://github.com/yos-sk/PRCGAP',
@@ -30,8 +31,10 @@ export default defineConfig({
         text: 'PRCGAP',
         items: [
           { text: 'Introduction', link: '/Introduction' },
-          { text: 'Preparation', link: '/Preparation' },
+          { text: 'Quick start', link: '/QuickStart' },
           { text: 'Usage', link: '/Usage' },
+          { text: 'Options', link: '/Options' },
+          { text: 'Preparation', link: '/Preparation' },
           { text: 'Workflow', link: '/Workflow' },
           { text: 'Example', link: '/Example' },
         ],
