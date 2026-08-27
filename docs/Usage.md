@@ -7,9 +7,9 @@ The setup flow is:
 1. **Prerequisites** — Snakemake 7.x, Apptainer, and (optionally) cookiecutter in one isolated environment.
 2. **Clone the repository and pull container images** — `images/pull_images.sh` fetches every `.sif` from Docker Hub.
 3. **Fetch the references** — `resource/scripts/download_reference.sh`, once per installation.
-4. **(Optional but recommended) author a cluster profile** — scaffold one from the Snakemake-Profiles templates if you submit to UGE / SLURM / PBS.
+4. **(Optional but recommended) author a cluster profile** — scaffold one from the Snakemake-Profiles templates if you submit to SLURM or SGE/UGE.
 5. **Generate `config.yaml` and `run_workflow.sh`** — `setup_workflow.py` writes the sample sheet, resolves every path, embeds your profile, and emits a ready-to-execute runner.
-6. **Run** — `bash run_workflow.sh`, or `sbatch` / `qsub` it under a cluster profile.
+6. **Run** — `bash run_workflow.sh`.
 
 ## Installation
 
@@ -192,7 +192,7 @@ Notes:
 
 For users working with high-performance computing (HPC) clusters, we **strongly recommend** creating a Snakemake profile to manage job submission. Bind mounts, queues, account flags, and per-job resource caps differ significantly between sites, so PRCGAP does not ship a profile — you scaffold one for your own cluster. Once the profile directory exists, `setup_workflow.py --profile <path>` absolutises every path-valued key and embeds the profile into the generated runner script.
 
-The Snakemake-Profiles project ships [cookiecutter](https://cookiecutter.readthedocs.io/) templates for every major scheduler. The SLURM template is the most actively maintained one; SGE/UGE, LSF, PBS, and a generic fallback are also available under [`Snakemake-Profiles` on GitHub](https://github.com/Snakemake-Profiles).
+PRCGAP is validated against two [`Snakemake-Profiles`](https://github.com/Snakemake-Profiles) [cookiecutter](https://cookiecutter.readthedocs.io/) templates: **`slurm`** and **`sge`** (which also covers UGE). `setup_workflow.py` recognises those two by the profile directory's name when it writes the runner's scheduler header.
 
 ### Scaffold the profile
 
@@ -206,7 +206,7 @@ cookiecutter \
     $template
 ```
 
-(Use `gh:Snakemake-Profiles/sge`, `…/lsf`, `…/pbs-torque`, or `…/generic` instead of `slurm` for other schedulers.)
+(Use `gh:Snakemake-Profiles/sge` instead of `slurm` on SGE/UGE.)
 
 ### Interactive prompts walkthrough
 
@@ -256,8 +256,6 @@ profile/<profile_name>/
 └── slurm_utils.py         # shared helpers for the above
 ```
 
-`setup_workflow.py` reads `settings.json` to find the partition, and emits it as `#SBATCH -p` in the generated runner so the driver job lands on the same partition as its rules.
-
 > **TIP** — re-running `cookiecutter $template --output-dir profile -f --replay` regenerates the same profile non-interactively (using `settings.json`); useful for sharing the recipe across teammates without re-typing the 17 answers.
 
 ### Pin per-job cores to the allocation
@@ -298,7 +296,7 @@ Two notes on how paths are handled:
 1. Absolutise the profile path, so the runner works regardless of where you invoke it from.
 2. Rewrite any **path-valued keys inside `<profile>/config.yaml`** (`jobscript`, `cluster`, `cluster-status`, `cluster-cancel`, and the v8 `cluster-generic-*` equivalents) to absolute paths. Snakemake resolves these relative to the current working directory rather than to the profile directory, so without this rewrite they would break under `--directory <output_dir>`.
 3. Emit `snakemake --profile <absolute path> …` inside `run_workflow.sh`.
-4. Give the runner a scheduler header — `#SBATCH` when the profile directory name contains `slurm`, `#$` when it contains `sge` or `uge` — so the snakemake driver itself runs as a batch job. Submit it with `sbatch` / `qsub` rather than `bash`. Tune the driver with `--driver-time` and `--driver-mem`.
+4. Give the runner a scheduler header — `#SBATCH` when the profile directory name contains `slurm`, `#$` when it contains `sge` or `uge`. These are inert comments when the runner is started with `bash`.
 
 When `--profile` is omitted, `setup_workflow.py` produces a local-execution runner (`snakemake -j <jobs> --use-singularity …`) that you run with `bash`.
 
@@ -402,10 +400,10 @@ Every annotation flag here is optional: dropping a line simply omits that annota
 
 ## Running the workflow
 
+From the environment you activated in [Prerequisites](#prerequisites), local runs and cluster runs alike:
+
 ```bash
-bash run_workflow.sh          # local execution
-sbatch run_workflow.sh        # SLURM profile
-qsub   run_workflow.sh        # SGE / UGE profile
+bash run_workflow.sh
 ```
 
 The runner is generated with `--rerun-triggers mtime --rerun-incomplete --keep-going`, so re-running it after a failure resumes rather than restarting, and one failed branch does not stop the others.

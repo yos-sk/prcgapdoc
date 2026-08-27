@@ -183,10 +183,10 @@ Every key here is optional. Leaving one empty skips exactly that annotation colu
 | `--jobs N`, `-j` | `8` | Locally: concurrently running rules. With `--profile`: jobs queued in the cluster at once. |
 | `--singularity-bind PATHS` | *(empty)* | Comma-separated host paths bind-mounted into every container, forwarded as `--singularity-args "-B <paths> -e"`. |
 | `--runner-preamble LINE` | *(none)* | Shell line emitted in the runner before the snakemake call; repeatable. For site setup the generated script cannot know, e.g. `--runner-preamble 'module load apptainer'`. Emitted above `set -euo pipefail` so module init scripts that read unset variables do not abort the runner. |
-| `--driver-time D-HH:MM:SS` | `14-00:00:00` | `#SBATCH --time` for the snakemake driver job under a SLURM profile. The driver must outlive the whole workflow; without it the partition's DefaultTime applies. |
-| `--driver-mem GB` | `8` | Memory for the driver job under a SLURM or SGE profile (`#SBATCH --mem-per-cpu` / `#$ -l s_vmem`). The driver only submits jobs. |
+| `--driver-time D-HH:MM:SS` | `14-00:00:00` | `#SBATCH --time` written into the runner's header block. |
+| `--driver-mem GB` | `8` | Memory written into the runner's header block (`#SBATCH --mem-per-cpu` / `#$ -l s_vmem`). |
 
-When the profile directory name contains `slurm`, the runner is emitted with `#SBATCH` headers (submit it with `sbatch`); when it contains `sge` or `uge`, with `#$` headers (`qsub`). Otherwise it is a plain script for `bash`.
+Run the generated runner with `bash run_workflow.sh` in every case, local or cluster.
 
 ## Per-rule resources
 

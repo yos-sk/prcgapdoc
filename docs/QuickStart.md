@@ -72,7 +72,7 @@ Needs `samtools`, `bgzip`, and `tabix` on `PATH`, plus `images/nanomonsv.sif` fo
 
 ## 4. (Cluster only) scaffold a Snakemake profile
 
-Skip this on a single workstation. On UGE / SLURM / PBS, generate a profile with cookiecutter and hand it to `setup_workflow.py --profile`:
+Skip this on a single workstation. On SLURM or SGE/UGE, generate a profile with cookiecutter and hand it to `setup_workflow.py --profile`:
 
 ```bash
 cookiecutter --output-dir profile gh:Snakemake-Profiles/slurm   # or .../sge
@@ -126,9 +126,7 @@ Pass `--no-run-<step>` to turn one off and import that file instead via its path
 ## 6. Run
 
 ```bash
-bash run_workflow.sh          # local
-sbatch run_workflow.sh        # SLURM profile — the runner carries its own #SBATCH header
-qsub   run_workflow.sh        # SGE/UGE profile
+bash run_workflow.sh
 ```
 
 ## HiFi-only / ONT-only runs

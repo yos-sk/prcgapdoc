@@ -131,7 +131,7 @@ Or drop `--cancer-gene-census-tsv` from `test_configure.sh` and run without it �
 
 ## 4. (Optional) Author a Snakemake profile for HPC
 
-This section is only for UGE / SLURM / PBS clusters. On a single workstation you can **skip it entirely**. The full walkthrough — template choice, the 17 interactive prompts, and the jobscript patch that pins each job's cores to its allocation — is in [Usage → cluster profile](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter):
+This section is only for SLURM or SGE/UGE clusters. On a single workstation you can **skip it entirely**. The full walkthrough — template choice, the 17 interactive prompts, and the jobscript patch that pins each job's cores to its allocation — is in [Usage → cluster profile](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter):
 
 ```bash
 cookiecutter --output-dir ../../profile gh:Snakemake-Profiles/slurm   # or .../sge
@@ -174,9 +174,7 @@ Point-mutation calling runs on HiFi only, because `--mutation-seqtypes` defaults
 ## 6. Run the workflow
 
 ```bash
-bash run_HG008.sh          # local execution
-sbatch run_HG008.sh        # with a SLURM profile — the runner carries its own #SBATCH header
-qsub   run_HG008.sh        # with an SGE / UGE profile
+bash run_HG008.sh
 ```
 
 On an HPC cluster (jobs submitted through a Snakemake profile) the full chr20 walkthrough takes roughly **1–2 hours** end-to-end, measured. Wall-clock time varies with scheduler queueing and the per-rule resources you allocate; a single workstation, where rules run sequentially rather than in parallel, will be slower.
