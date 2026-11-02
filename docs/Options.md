@@ -5,7 +5,7 @@ A complete reference for `setup_workflow.py`, the single entry point that writes
 `python3 setup_workflow.py --help` prints the same list from the script itself.
 
 ::: tip Reading order
-[Quick start](./QuickStart.md) shows the minimal invocation; this page is the exhaustive list. Only three flags are truly mandatory: `--samplesheet`, `--chm13-fasta`, and — because the gene annotation is always built — `--grch38-fasta` together with `--grch38-gtf`.
+[Quick start](./QuickStart.md) shows the minimal invocation; this page is the exhaustive list. Only three flags are truly mandatory: `--samplesheet`, `--chm13-fasta`, and, because the gene annotation is always built, `--grch38-fasta` together with `--grch38-gtf`.
 :::
 
 ## Required
@@ -46,7 +46,7 @@ Omit **all** of the above to reuse a sheet you wrote by hand; see [Usage → Sam
 
 ## In-workflow annotation generation
 
-PRCGAP builds the per-assembly annotation it needs from the assembly plus the CHM13 / GRCh38 references, so a run does not have to import it from [assembly_workflow](https://github.com/yos-sk/assembly_workflow). **All four switches default to on**, and the liftoff gene annotation has no switch — it is always built.
+PRCGAP builds the per-assembly annotation it needs from the assembly plus the CHM13 / GRCh38 references, so a run does not have to import it from [assembly_workflow](https://github.com/yos-sk/assembly_workflow). **All four switches default to on**, and the liftoff gene annotation has no switch; it is always built.
 
 | Flag | config key | Default | Builds | Supersedes |
 |------|------------|---------|--------|-----------|
@@ -54,7 +54,7 @@ PRCGAP builds the per-assembly annotation it needs from the assembly plus the CH
 | `--run-simple-repeat` / `--no-run-simple-repeat` | `run_simple_repeat` | on | Tandem-repeat BED (ULTRA, period ≤ 10) used by `nanomonsv get` | `--simple-repeat` |
 | `--run-line1` / `--no-run-line1` | `run_line1` | on | Full-length young LINE-1 BED used by `nanomonsv insert_classify` | `--line1-bed` |
 | `--run-chain-files` / `--no-run-chain-files` | `run_chain_files` | on | Assembly → CHM13 / GRCh38 chain files | `--chain-to-chm13`, `--chain-to-grch38` |
-| *(always on)* | — | — | Liftoff gene annotation (GFF + GTF) | — |
+| *(always on)* | n/a | always | Liftoff gene annotation (GFF + GTF) | n/a |
 
 When a switch is on, the generated file wins over the corresponding path key, which can then be left empty. `--no-run-<step>` turns it off, and you supply that file yourself.
 
@@ -64,15 +64,15 @@ References these steps consume:
 |------|------------|--------------|
 | `--grch38-fasta` | `grch38_fasta` | liftoff, chain files (and the GRCh38 INDEL lift) |
 | `--grch38-gtf` | `grch38_gtf` | liftoff |
-| `--chm13-censat` | `chm13_censat` | chain files (satellite masking) — also the copy-number plot |
+| `--chm13-censat` | `chm13_censat` | chain files (satellite masking); also the copy-number plot |
 | `--grch38-centromeres` | `grch38_centromeres` | chain files (UCSC hg38 `centromeres.txt[.gz]`) |
 | `--grch38-exclusions` | `grch38_exclusions` | chain files (GRC exclusion-regions BED) |
 
-`--run-line1` needs no reference flag: `resource/line1/{L1.3,l1_3end,l1_5end}.fa` ship with the workflow and are read from the repo. They are **not tracked** — build them once per clone with `bash resource/scripts/build_line1_resources.sh`, which `resource/scripts/download_reference.sh` also does for you.
+`--run-line1` needs no reference flag: `resource/line1/{L1.3,l1_3end,l1_5end}.fa` ship with the workflow and are read from the repo. They are **not tracked**; build them once per clone with `bash resource/scripts/build_line1_resources.sh`, which `resource/scripts/download_reference.sh` also does for you.
 
 | config key | Default | Description |
 |------------|---------|-------------|
-| `simple_repeat_min_copies` | `4` | Minimum repeat copy number kept when `run_simple_repeat` is on. **Config-only** — edit `config.yaml`; there is no CLI flag. |
+| `simple_repeat_min_copies` | `4` | Minimum repeat copy number kept when `run_simple_repeat` is on. **Config-only**: edit `config.yaml`; there is no CLI flag. |
 
 ## Imported annotation paths
 
@@ -80,16 +80,16 @@ Supply these when the corresponding `--run-*` switch is off, or when you have th
 
 | Flag | config key | Used by |
 |------|------------|---------|
-| `--hap1-satellite` | `hap1_satellite` | Copy number — masks the hap1 reference |
-| `--hap2-satellite` | `hap2_satellite` | Copy number — masks the hap2 reference |
-| `--simple-repeat` | `simple_repeat` | `nanomonsv get` — drops indel-like SVs inside a tandem repeat |
-| `--line1-bed` | `line1_bed` | `nanomonsv insert_classify` — transduction source elements |
+| `--hap1-satellite` | `hap1_satellite` | Copy number: masks the hap1 reference |
+| `--hap2-satellite` | `hap2_satellite` | Copy number: masks the hap2 reference |
+| `--simple-repeat` | `simple_repeat` | `nanomonsv get`: drops indel-like SVs inside a tandem repeat |
+| `--line1-bed` | `line1_bed` | `nanomonsv insert_classify`: transduction source elements |
 | `--chain-to-grch38` | `chain_to_grch38` | SV / SNV / INDEL liftover to GRCh38 |
 | `--chain-to-chm13` | `chain_to_chm13` | SV / SNV / INDEL liftover to CHM13 |
 
 ## Variant-annotation resources (all optional)
 
-Every key here is optional. Leaving one empty skips exactly that annotation column — the DAG still resolves and the run still finishes. See [Preparation](./Preparation.md) for how each is produced.
+Every key here is optional. Leaving one empty skips exactly that annotation column; the DAG still resolves and the run still finishes. See [Preparation](./Preparation.md) for how each is produced.
 
 | Flag | config key | Used by |
 |------|------------|---------|
@@ -101,8 +101,8 @@ Every key here is optional. Leaving one empty skips exactly that annotation colu
 | `--cancer-gene-census-tsv` | `cancer_gene_census_tsv` | Gene-level cancer annotation (COSMIC CGC TSV) |
 | `--cmrg-gene-list` | `cmrg_gene_tsv` | SNV / INDEL CMRG annotation (one HGNC symbol per line) |
 | `--mane-summary` | `mane_summary` | Restricts SNV / INDEL gene annotation to each gene's MANE transcript. Without it, every protein-coding transcript over the site is reported. Must be the release matching `--grch38-gtf`. |
-| `--gnomad-bed` | `gnomad_bed` | SV gnomAD annotation — requires a GRCh38 chain |
-| `--gnomad-vcf` | `gnomad_vcf` | SNV / INDEL gnomAD annotation — requires a GRCh38 chain |
+| `--gnomad-bed` | `gnomad_bed` | SV gnomAD annotation; requires a GRCh38 chain |
+| `--gnomad-vcf` | `gnomad_vcf` | SNV / INDEL gnomAD annotation; requires a GRCh38 chain |
 
 `--gnomad-bed` / `--gnomad-vcf` and the transanno INDEL lift all depend on the GRCh38 chain (`--run-chain-files`, or `--chain-to-grch38`) plus `--grch38-fasta`.
 
@@ -115,6 +115,8 @@ Every key here is optional. Leaving one empty skips exactly that annotation colu
 | `--clairs-model MODEL` | `clairs_model` | `hifi_sequel2` | ClairS platform model, applied to every seqtype ClairS runs on. One of `hifi_sequel2`, `hifi_revio`, `ont_r10_dorado_sup_5khz_ssrs`, `ont_r10_dorado_sup_4khz`. **Set this for ONT data.** |
 | `--caller-solo-contig-min-bp N` | `caller_solo_contig_min_bp` | `1000000` | Contigs at least this long get their own caller chunk / job; shorter ones are bundled into one. |
 | `--deepsomatic-postprocess-variants-cpus N` | `deepsomatic_postprocess_variants_cpus` | `1` | Worker count for DeepSomatic's `postprocess_variants`, whose own default is the node's core count and ignores the scheduler allocation. |
+
+DeepSomatic has no model flag: `--model_type` follows the seqtype, `PACBIO` for HiFi and `ONT` for ONT. ClairS is an alternative caller and is off by default; its model does not follow the seqtype, so set `--clairs-model` whenever ClairS runs on ONT data. The paper used DeepSomatic on HiFi only; see [Introduction → Configuration used in the paper](./Introduction.md#configuration-used-in-the-paper).
 
 ### Post-processing pileup
 
@@ -159,21 +161,21 @@ Every key here is optional. Leaving one empty skips exactly that annotation colu
 | `--deepsomatic-image` | `<images-dir>/deepsomatic.sif` | DeepSomatic |
 | `--point-mutation-postprocess-image` | `<images-dir>/point_mutation_postprocess.sif` | Realignment / pileup / haplotyping |
 | `--annotation-image` | `<images-dir>/annotation.sif` | pysam, samtools, coordconv, transanno, bgzip/tabix |
-| `--dna-nn-image` | `<images-dir>/dna_nn.sif` | dna-brnn — only with `--run-dna-brnn` |
+| `--dna-nn-image` | `<images-dir>/dna_nn.sif` | dna-brnn; only with `--run-dna-brnn` |
 | `--liftoff-image` | `<images-dir>/liftoff.sif` | liftoff, minimap2, gffread |
-| `--chain-files-image` | `<images-dir>/chain_files.sif` | minimap2, transanno, chaintools, rustybam, paf2chain — only with `--run-chain-files` |
+| `--chain-files-image` | `<images-dir>/chain_files.sif` | minimap2, transanno, chaintools, rustybam, paf2chain; only with `--run-chain-files` |
 
 ## Output and runner
 
 | Flag | config key | Default | Description |
 |------|------------|---------|-------------|
 | `--output-dir DIR` | `output_dir` | `results` | Snakemake working directory (`--directory`); everything in [Output directory layout](./Workflow.md#output-directory-layout) is relative to it. |
-| `--output PATH`, `-o` | — | `config/config.yaml` | Where the generated `config.yaml` is written. |
-| `--runner PATH` | — | `run_workflow.sh` | Where the generated runner script is written. |
-| `--workflow-dir DIR` | — | `workflow/` next to `setup_workflow.py` | Directory containing the `Snakefile`. |
-| `--targets T [T ...]` | — | *(full pipeline)* | Bake default Snakemake targets into the runner so it builds only those (e.g. `copynumber/{tumor}/output`). Relative to `--output-dir`. Targets given on the runner's command line still win. |
-| `--force`, `-f` | — | off | Overwrite an existing config / runner / sample sheet. |
-| `--debug` | `debug` | off | Keep the scratch a successful run otherwise deletes — every `workspace/`, the caller scatter dirs, `bwa_index/`, `copynumber/reference/`, and the per-rule copies of `reference.fa`. |
+| `--output PATH`, `-o` | *(CLI only)* | `config/config.yaml` | Where the generated `config.yaml` is written. |
+| `--runner PATH` | *(CLI only)* | `run_workflow.sh` | Where the generated runner script is written. |
+| `--workflow-dir DIR` | *(CLI only)* | `workflow/` next to `setup_workflow.py` | Directory containing the `Snakefile`. |
+| `--targets T [T ...]` | *(CLI only)* | *(full pipeline)* | Bake default Snakemake targets into the runner so it builds only those (e.g. `copynumber/{tumor}/output`). Relative to `--output-dir`. Targets given on the runner's command line still win. |
+| `--force`, `-f` | *(CLI only)* | off | Overwrite an existing config / runner / sample sheet. |
+| `--debug` | `debug` | off | Keep the scratch a successful run otherwise deletes: every `workspace/`, the caller scatter dirs, `bwa_index/`, `copynumber/reference/`, and the per-rule copies of `reference.fa`. |
 
 ## Execution
 
@@ -253,7 +255,7 @@ Every rule takes `--<rule>-threads` and `--<rule>-mem-mb`, written into `config.
 | `bed2vcf_mut` | 1 | 8000 |
 | `liftvcf_mut` | 1 | 16000 |
 
-The flag name is the rule name with underscores replaced by hyphens — `nanomonsv_get` → `--nanomonsv-get-threads` / `--nanomonsv-get-mem-mb`.
+The flag name is the rule name with underscores replaced by hyphens: `nanomonsv_get` → `--nanomonsv-get-threads` / `--nanomonsv-get-mem-mb`.
 
 The copy-number rules that were split out of a formerly monolithic `copynumber` rule inherit the parent's values when their own flag is left at its default, so an existing invocation that only sets `--copynumber-threads` / `--copynumber-mem-mb` still sizes `copynumber_ref_table`, `copynumber_depth`, `copynumber_segment`, and `copynumber_plot`.
 
@@ -261,8 +263,10 @@ The copy-number rules that were split out of a formerly monolithic `copynumber` 
 `clairs` / `deepsomatic` thread counts double as `--num_shards`, and each shard is a separate TensorFlow process. The memory defaults assume the scheduler **binds a job to its allocated cores**; without that binding the shards size themselves from the host's core count and need considerably more. Re-check before lowering either number.
 :::
 
+For the measured run time and peak memory of each step on a whole-genome sample, see [Workflow → Computation time](./Workflow.md#computation-time).
+
 ## See also
 
-- [Quick start](./QuickStart.md) — the minimal invocation
-- [Usage](./Usage.md) — installation, sample sheet, cluster profile, bind mounts
-- [Workflow](./Workflow.md) — what each rule does and where its output lands
+- [Quick start](./QuickStart.md): the minimal invocation
+- [Usage](./Usage.md): installation, sample sheet, cluster profile, bind mounts
+- [Workflow](./Workflow.md): what each rule does and where its output lands

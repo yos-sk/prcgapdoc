@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'PRCGAP documentation',
   description:
-    'Personalized Reference genome-based Cancer Genome Analysis Pipeline — Snakemake workflow for tumor/normal long-read cancer genome analysis on phased de novo assemblies.',
+    'Personalized Reference genome-based Cancer Genome Analysis Pipeline: Snakemake workflow for tumor/normal long-read cancer genome analysis on phased de novo assemblies.',
   lang: 'en-US',
 
   // GitHub Pages base path: change to '/<repo-name>/' when deploying to
@@ -57,8 +57,8 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'National Cancer Center — Genome Analysis Group',
+      message: 'Released under the GNU General Public License v3.0 (GPL-3.0).',
+      copyright: 'National Cancer Center Research Institute, Division of Genome Analysis Platform Development',
     },
   },
 })

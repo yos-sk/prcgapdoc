@@ -1,6 +1,6 @@
 # Quick start
 
-PRCGAP needs **three things** to run: long reads for a tumor / normal pair, a phased diploid assembly of the normal, and a one-time set of public reference files. Everything else — the per-assembly annotation the pipeline reasons about its own calls with — PRCGAP builds itself.
+PRCGAP needs **three things** to run: long reads for a tumor / normal pair, a phased diploid assembly of the normal, and a one-time set of public reference files. PRCGAP builds everything else itself, including the per-assembly annotation it uses to interpret its own calls.
 
 ```
 reads (bam / fastq.gz)     ─┐
@@ -8,16 +8,16 @@ assembly hap1 / hap2 FASTA  ├─► setup_workflow.py ─► run_workflow.sh �
 public references          ─┘
 ```
 
-This page is the shortest path from a clone to a finished run. If you want the richer annotation set (segmental duplications, cenSat subtypes, RepeatMasker, misassembly tracks), run the companion [assembly_workflow](https://github.com/yos-sk/assembly_workflow) pipeline first and pass its outputs in — see [Preparation](./Preparation.md). That is strictly additive: the run below works without any of it.
+This page is the shortest path from a clone to a finished run. If you want the richer annotation set (segmental duplications, cenSat subtypes, RepeatMasker, misassembly tracks), run the companion [assembly_workflow](https://github.com/yos-sk/assembly_workflow) pipeline first and pass its outputs in; see [Preparation](./Preparation.md). That is strictly additive: the run below works without any of it.
 
 ## What you need
 
 | Input | Notes |
 |-------|-------|
-| Tumor reads | PacBio HiFi and/or ONT, bam or fastq.gz. **Either sequencing type alone is enough** — see [HiFi-only / ONT-only](#hifi-only-ont-only-runs). |
+| Tumor reads | PacBio HiFi and/or ONT, bam or fastq.gz. **Either sequencing type alone is enough**; see [HiFi-only / ONT-only](#hifi-only-ont-only-runs). |
 | Normal reads | Same seqtypes as the tumor (a seqtype is analysed only when both samples have it). |
 | `{normal}.hap1.fa`, `{normal}.hap2.fa` | Phased diploid assembly of the **normal**, from Hifiasm / Verkko / assembly_workflow. Tumor and normal are both aligned to it. |
-| Sample sex | `male` / `female` — drives chrY masking and the copy-number plot. |
+| Sample sex | `male` / `female`; drives chrY masking and the copy-number plot. |
 | Public references | Fetched once by `resource/scripts/download_reference.sh` (below). |
 
 ::: tip One pair per run
@@ -47,7 +47,7 @@ cd PRCGAP
 (cd images && bash pull_images.sh)
 ```
 
-This is the slow part — roughly **30 minutes**, dominated by pulling and converting twelve container images. See [Usage → Container images](./Usage.md#container-images) for the list.
+This is the slow part: roughly **30 minutes**, dominated by pulling and converting twelve container images. See [Usage → Container images](./Usage.md#container-images) for the list.
 
 ## 3. Fetch the references (once per installation)
 
@@ -66,7 +66,7 @@ Writes into `resource/reference/` and additionally builds `resource/line1/*.fa`,
 | `centromeres.txt.gz` | `--grch38-centromeres` | chain files |
 | `GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed` | `--grch38-exclusions` | chain files |
 | `MANE.GRCh38.v1.3.summary.txt.gz` | `--mane-summary` | SNV / INDEL gene annotation |
-| `resource/line1/{L1.3,l1_3end,l1_5end}.fa` | — (read from the repo) | LINE-1 annotation |
+| `resource/line1/{L1.3,l1_3end,l1_5end}.fa` | None (read from the repo) | LINE-1 annotation |
 
 Needs `samtools`, `bgzip`, and `tabix` on `PATH`, plus `images/nanomonsv.sif` for the LINE-1 models.
 
@@ -78,7 +78,7 @@ Skip this on a single workstation. On SLURM or SGE/UGE, generate a profile with 
 cookiecutter --output-dir profile gh:Snakemake-Profiles/slurm   # or .../sge
 ```
 
-The full walkthrough — the interactive prompts, and the jobscript patch that pins each job's `--cores` to its allocation — is in [Usage → cluster profile](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter). **Apply the jobscript patch**; without it every job grabs every core on its node.
+The full walkthrough (the interactive prompts, and the jobscript patch that pins each job's `--cores` to its allocation) is in [Usage → cluster profile](./Usage.md#optional-but-recommended-author-a-cluster-profile-with-cookiecutter). **Apply the jobscript patch**; without it every job grabs every core on its node.
 
 ## 5. Configure
 
@@ -154,7 +154,7 @@ What changes:
 | Copy number | HiFi | HiFi | ONT |
 
 - A seqtype is analysed only when **both** the tumor and its paired normal carry it.
-- Point-mutation calling defaults to `--mutation-seqtypes primary` — one seqtype, HiFi when both are present. Pass `--mutation-seqtypes all` to call on every shared seqtype.
+- Point-mutation calling defaults to `--mutation-seqtypes primary`: one seqtype, HiFi when both are present. Pass `--mutation-seqtypes all` to call on every shared seqtype.
 - Copy number always uses the primary shared seqtype.
 - The optional `--run-nanomonsv-merge` step (HiFi+ONT SV merge) is only meaningful when both seqtypes are present and is skipped otherwise.
 - With `--mutation-caller clairs` or `both`, set `--clairs-model` to match your data; the default `hifi_sequel2` is a HiFi model.
@@ -176,7 +176,7 @@ The full tree is in [Workflow → Output directory layout](./Workflow.md#output-
 
 ## Next steps
 
-- [Usage](./Usage.md) — installation detail, sample-sheet columns, cluster profiles, bind mounts
-- [Options](./Options.md) — every `setup_workflow.py` flag and `config.yaml` key
-- [Preparation](./Preparation.md) — the optional deeper annotation set, via assembly_workflow
-- [Example](./Example.md) — the HG008 chr20 walkthrough, with the files a finished run produces
+- [Usage](./Usage.md): installation detail, sample-sheet columns, cluster profiles, bind mounts
+- [Options](./Options.md): every `setup_workflow.py` flag and `config.yaml` key
+- [Preparation](./Preparation.md): the optional deeper annotation set, via assembly_workflow
+- [Example](./Example.md): the HG008 chr20 walkthrough, with the files a finished run produces

@@ -4,12 +4,12 @@ This page is the detailed companion to [Quick start](./QuickStart.md): installat
 
 The setup flow is:
 
-1. **Prerequisites** — Snakemake 7.x, Apptainer, and (optionally) cookiecutter in one isolated environment.
-2. **Clone the repository and pull container images** — `images/pull_images.sh` fetches every `.sif` from Docker Hub.
-3. **Fetch the references** — `resource/scripts/download_reference.sh`, once per installation.
-4. **(Optional but recommended) author a cluster profile** — scaffold one from the Snakemake-Profiles templates if you submit to SLURM or SGE/UGE.
-5. **Generate `config.yaml` and `run_workflow.sh`** — `setup_workflow.py` writes the sample sheet, resolves every path, embeds your profile, and emits a ready-to-execute runner.
-6. **Run** — `bash run_workflow.sh`.
+1. **Prerequisites**: Snakemake 7.x, Apptainer, and (optionally) cookiecutter in one isolated environment.
+2. **Clone the repository and pull container images**: `images/pull_images.sh` fetches every `.sif` from Docker Hub.
+3. **Fetch the references**: `resource/scripts/download_reference.sh`, once per installation.
+4. **(Optional but recommended) author a cluster profile**: scaffold one from the Snakemake-Profiles templates if you submit to SLURM or SGE/UGE.
+5. **Generate `config.yaml` and `run_workflow.sh`**: `setup_workflow.py` writes the sample sheet, resolves every path, embeds your profile, and emits a ready-to-execute runner.
+6. **Run**: `bash run_workflow.sh`.
 
 ## Installation
 
@@ -17,13 +17,13 @@ The setup flow is:
 
 PRCGAP runs end-to-end inside Apptainer / Singularity containers, so the host needs only:
 
-- [Snakemake](https://snakemake.readthedocs.io/) **7.32.4** — the workflow driver.
-- [Apptainer](https://apptainer.org/) — the container runtime (Singularity is supported transparently).
-- [cookiecutter](https://cookiecutter.readthedocs.io/) — optional, only to scaffold a cluster profile.
+- [Snakemake](https://snakemake.readthedocs.io/) **7.32.4**: the workflow driver.
+- [Apptainer](https://apptainer.org/): the container runtime (Singularity is supported transparently).
+- [cookiecutter](https://cookiecutter.readthedocs.io/): optional, only to scaffold a cluster profile.
 
 Plus `python3` with `pyyaml` for `setup_workflow.py`, and `samtools` / `bgzip` / `tabix` on `PATH` for the one-time reference download.
 
-> **WARNING — Snakemake >= 8 is not supported.** Snakemake 8 changes several CLI flags (`--sdm` / `--software-deployment-method` replaces `--use-singularity`, the profile format differs) and PRCGAP has only been validated against 7.32.4. Pin the version explicitly when you create the environment.
+> **WARNING: Snakemake >= 8 is not supported.** Snakemake 8 changes several CLI flags (`--sdm` / `--software-deployment-method` replaces `--use-singularity`, the profile format differs) and PRCGAP has only been validated against 7.32.4. Pin the version explicitly when you create the environment.
 
 A quick install with [mamba](https://github.com/mamba-org/mamba):
 
@@ -31,7 +31,7 @@ A quick install with [mamba](https://github.com/mamba-org/mamba):
 # Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
 mamba create -n PRCGAP -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml
 
-# Singularity/Apptainer — OPTIONAL: skip if you already have it (system install
+# Singularity/Apptainer (OPTIONAL): skip if you already have it (system install
 # or `module load apptainer`/`singularity`)
 mamba install -n PRCGAP -c conda-forge apptainer
 
@@ -71,13 +71,13 @@ The script populates `images/` with one `.sif` per module:
 | `deepsomatic.sif` | DeepSomatic |
 | `point_mutation_postprocess.sif` | ClairS / DeepSomatic post-processing (realignment, pileup, haplotyping) |
 | `annotation.sif` | SV + SNV/INDEL annotation (pysam, samtools, coordconv, transanno, bgzip/tabix) |
-| `dna_nn.sif` | In-workflow annotation — dna-brnn satellites |
-| `liftoff.sif` | In-workflow annotation — liftoff, minimap2, gffread |
-| `chain_files.sif` | In-workflow annotation — minimap2, transanno, chaintools, rustybam, paf2chain |
+| `dna_nn.sif` | In-workflow annotation: dna-brnn satellites |
+| `liftoff.sif` | In-workflow annotation: liftoff, minimap2, gffread |
+| `chain_files.sif` | In-workflow annotation: minimap2, transanno, chaintools, rustybam, paf2chain |
 
 The last three drive the annotation PRCGAP now builds itself (see [In-workflow annotation](#in-workflow-annotation)).
 
-> **TIP** — `setup_workflow.py` reads `--images-dir` (default: the `images/` directory next to the script) and picks up every `<tool>.sif` automatically, so you do not have to pass each image individually. Override only the images you built locally, via the corresponding `--<tool>-image` flag.
+> **TIP:** `setup_workflow.py` reads `--images-dir` (default: the `images/` directory next to the script) and picks up every `<tool>.sif` automatically, so you do not have to pass each image individually. Override only the images you built locally, via the corresponding `--<tool>-image` flag.
 
 ### Fetch the references
 
@@ -93,15 +93,15 @@ PRCGAP builds the per-assembly annotation it needs from the assembly plus the CH
 
 | Step | Switch | Default | Produces |
 |------|--------|---------|----------|
-| dna-brnn | `--run-dna-brnn` | **on** | Per-haplotype centromeric satellite BED — masks the copy-number reference |
-| Tandem repeats | `--run-simple-repeat` | **on** | ULTRA tandem-repeat BED — `nanomonsv get` drops indel-like SVs inside one |
-| LINE-1 | `--run-line1` | **on** | Full-length young L1HS / L1PA2–5 BED — `nanomonsv insert_classify` transduction sources |
-| Chain files | `--run-chain-files` | **on** | Assembly → CHM13 / GRCh38 chains — SV / SNV / INDEL liftover and gnomAD |
-| Liftoff genes | *(no switch)* | always | Gene GFF + GTF on the assembly — gene annotation and `insert_classify` |
+| dna-brnn | `--run-dna-brnn` | **on** | Per-haplotype centromeric satellite BED: masks the copy-number reference |
+| Tandem repeats | `--run-simple-repeat` | **on** | ULTRA tandem-repeat BED: `nanomonsv get` drops indel-like SVs inside one |
+| LINE-1 | `--run-line1` | **on** | Full-length young L1HS / L1PA2–5 BED: `nanomonsv insert_classify` transduction sources |
+| Chain files | `--run-chain-files` | **on** | Assembly → CHM13 / GRCh38 chains: SV / SNV / INDEL liftover and gnomAD |
+| Liftoff genes | *(no switch)* | always | Gene GFF + GTF on the assembly: gene annotation and `insert_classify` |
 
 Pass `--no-run-<step>` to turn one off and import that file instead (`--hap1-satellite` / `--hap2-satellite`, `--simple-repeat`, `--line1-bed`, `--chain-to-grch38` / `--chain-to-chm13`). When a switch is on, the generated file wins over the corresponding path key.
 
-Four annotation resources are **not** built in-workflow — RepeatMasker, SEDEF segmental duplications, cenSat satellite subtypes, and misassembly tracks. They are optional annotation columns; supply them from assembly_workflow if you want them. See [Preparation](./Preparation.md).
+Four annotation resources are **not** built in-workflow: RepeatMasker, SEDEF segmental duplications, cenSat satellite subtypes, and misassembly tracks. They are optional annotation columns; supply them from assembly_workflow if you want them. See [Preparation](./Preparation.md).
 
 ## Sample sheet
 
@@ -128,10 +128,10 @@ Columns:
 |--------|----------|-------------|
 | `sample` | yes | Unique sample identifier |
 | `type` | yes | `tumor` or `normal` |
-| `ont` | no | Path(s) to ONT data (bam or fastq.gz). Multiple files are supported — a single comma-separated value, no spaces. |
+| `ont` | no | Path(s) to ONT data (bam or fastq.gz). Multiple files are supported as a single comma-separated value, with no spaces. |
 | `hifi` | no | Path(s) to HiFi data (bam or fastq.gz). Same comma-separated form. |
-| `assembly_hap1` | yes | Path to the haplotype 1 assembly (FASTA) — the same path for tumor and normal of a pair. |
-| `assembly_hap2` | yes | Path to the haplotype 2 assembly (FASTA) — the same path for tumor and normal of a pair. |
+| `assembly_hap1` | yes | Path to the haplotype 1 assembly (FASTA); the same path for tumor and normal of a pair. |
+| `assembly_hap2` | yes | Path to the haplotype 2 assembly (FASTA); the same path for tumor and normal of a pair. |
 
 `ont` and `hifi` are each optional, but **every sample must have at least one of them**. That is what makes HiFi-only and ONT-only runs work; see [Sequencing types](#sequencing-types-hifi-only-ont-only-and-both).
 
@@ -143,7 +143,7 @@ sample	type	ont	hifi	assembly_hap1	assembly_hap2
 {normal_name}	normal	/data/{normal}_ont.bam	/data/{normal}_hifi.bam	/data/{normal}.hap1.fa	/data/{normal}.hap2.fa
 ```
 
-For tumor / normal pairs, **both samples must use the same haplotype assemblies** — typically those built from the matched normal.
+For tumor / normal pairs, **both samples must use the same haplotype assemblies**, typically those built from the matched normal.
 
 ### One pair per run
 
@@ -154,7 +154,7 @@ A run is one tumor / normal pair on one assembly. The per-assembly annotation in
 Leave the column (or the flag) empty for a sequencing type you do not have.
 
 ```
-# HiFi-only pair — the ont column is present but empty
+# HiFi-only pair: the ont column is present but empty
 sample	type	ont	hifi	assembly_hap1	assembly_hap2
 {tumor_name}	tumor		/data/{tumor}_hifi.bam	/data/{normal}.hap1.fa	/data/{normal}.hap2.fa
 {normal_name}	normal		/data/{normal}_hifi.bam	/data/{normal}.hap1.fa	/data/{normal}.hap2.fa
@@ -163,18 +163,18 @@ sample	type	ont	hifi	assembly_hap1	assembly_hap2
 How the workflow adapts:
 
 - **Per-sample rules** (BAM refinement, methylation) run for every seqtype that sample has.
-- **Tumor / normal rules** (nanomonsv, copy number, point mutations) run only for seqtypes present in **both** the tumor and its paired normal — a matched pair of BAMs is required.
+- **Tumor / normal rules** (nanomonsv, copy number, point mutations) run only for seqtypes present in **both** the tumor and its paired normal; a matched pair of BAMs is required.
 - **Point mutations** default to `--mutation-seqtypes primary`: one seqtype only, HiFi when both are present. SNV/INDEL calling is validated on HiFi, and on a HiFi+ONT sample the ONT arm is the more expensive of the two while adding calls without HiFi support. Pass `--mutation-seqtypes all` to call on every shared seqtype.
 - **Copy number** always uses the primary shared seqtype.
 - **`--run-nanomonsv-merge`** (HiFi + ONT SV merge) only fires when both seqtypes are present.
 
 ::: warning ONT and ClairS
-`--clairs-model` defaults to `hifi_sequel2`. On ONT data with `--mutation-caller clairs` or `both`, set it explicitly — e.g. `--clairs-model ont_r10_dorado_sup_5khz_ssrs`. It applies to every seqtype ClairS runs on.
+`--clairs-model` defaults to `hifi_sequel2`. On ONT data with `--mutation-caller clairs` or `both`, set it explicitly, e.g. `--clairs-model ont_r10_dorado_sup_5khz_ssrs`. It applies to every seqtype ClairS runs on.
 :::
 
 ### Multiple input files per sample
 
-The `ont` and `hifi` columns each accept **one or more file paths in a single TSV cell**. When a sample has been sequenced across multiple runs, list every path joined by commas — **no whitespace around the commas, no quoting, and the entire list stays in one column**.
+The `ont` and `hifi` columns each accept **one or more file paths in a single TSV cell**. When a sample has been sequenced across multiple runs, list every path joined by commas: **no whitespace around the commas, no quoting, and the entire list stays in one column**.
 
 ```
 sample	type	ont	hifi	assembly_hap1	assembly_hap2
@@ -190,7 +190,7 @@ Notes:
 
 ## (Optional but recommended) Author a cluster profile with `cookiecutter`
 
-For users working with high-performance computing (HPC) clusters, we **strongly recommend** creating a Snakemake profile to manage job submission. Bind mounts, queues, account flags, and per-job resource caps differ significantly between sites, so PRCGAP does not ship a profile — you scaffold one for your own cluster. Once the profile directory exists, `setup_workflow.py --profile <path>` absolutises every path-valued key and embeds the profile into the generated runner script.
+For users working with high-performance computing (HPC) clusters, we **strongly recommend** creating a Snakemake profile to manage job submission. Bind mounts, queues, account flags, and per-job resource caps differ significantly between sites, so PRCGAP does not ship a profile; you scaffold one for your own cluster. Once the profile directory exists, `setup_workflow.py --profile <path>` absolutises every path-valued key and embeds the profile into the generated runner script.
 
 PRCGAP is validated against two [`Snakemake-Profiles`](https://github.com/Snakemake-Profiles) [cookiecutter](https://cookiecutter.readthedocs.io/) templates: **`slurm`** and **`sge`** (which also covers UGE). `setup_workflow.py` recognises those two by the profile directory's name when it writes the runner's scheduler header.
 
@@ -210,14 +210,14 @@ cookiecutter \
 
 ### Interactive prompts walkthrough
 
-Cookiecutter then asks **17 questions** in sequence. Suggested answers for a SLURM-based PRCGAP deployment are shown alongside each prompt; press `Enter` to accept the default in `(parens)`. Adjust to taste — every answer ends up in `profile/<profile_name>/config.yaml` and can be edited afterwards.
+Cookiecutter then asks **17 questions** in sequence. Suggested answers for a SLURM-based PRCGAP deployment are shown alongside each prompt; press `Enter` to accept the default in `(parens)`. Adjust to taste; every answer ends up in `profile/<profile_name>/config.yaml` and can be edited afterwards.
 
 ```
 [1/17]  profile_name (slurm):                        # accept default or e.g. prcgap-slurm
-[2/17]  Select use_singularity                       # ► 2 (True)  — PRCGAP runs every rule in a container
+[2/17]  Select use_singularity                       # ► 2 (True):  PRCGAP runs every rule in a container
         1 - False
         2 - True
-[3/17]  Select use_conda                             # ► 1 (False) — PRCGAP does not use conda envs
+[3/17]  Select use_conda                             # ► 1 (False): PRCGAP does not use conda envs
         1 - False
         2 - True
 [4/17]  jobs (500):                                  # max concurrent SLURM jobs; 64–500 is typical
@@ -225,11 +225,11 @@ Cookiecutter then asks **17 questions** in sequence. Suggested answers for a SLU
 [6/17]  max_status_checks_per_second (10):           # keep default unless your scheduler is rate-limited
 [7/17]  max_jobs_per_second (10):                    # keep default
 [8/17]  latency_wait (5):                            # bump to 60–120 on Lustre / NFS
-[9/17]  Select print_shell_commands                  # ► 1 (False) — keep snakemake's log compact
+[9/17]  Select print_shell_commands                  # ► 1 (False): keep snakemake's log compact
 [10/17] sbatch_defaults:                             # site-specific, e.g. "partition=cpuq account=myacct"
         # other options (qos, time, mail-user, …) can also be appended here as space-separated key=value
 [11/17] cluster_sidecar_help:                        # informational; press Enter
-[12/17] Select cluster_sidecar                       # ► 1 (yes) on Snakemake 7.x — uses one sidecar
+[12/17] Select cluster_sidecar                       # ► 1 (yes) on Snakemake 7.x; uses one sidecar
         1 - yes                                       #     process to batch squeue/sacct calls
         2 - no
 [13/17] cluster_name:                                # optional free-form label; leave empty unless you
@@ -237,7 +237,7 @@ Cookiecutter then asks **17 questions** in sequence. Suggested answers for a SLU
 [14/17] cluster_jobname ({rule}.{jobid}):            # accept default; expands per job
 [15/17] cluster_logpath (logs/slurm/{rule}/%j):      # accept default; paths are created automatically
 [16/17] cluster_config_help:                         # informational; press Enter
-[17/17] cluster_config:                              # leave empty — deprecated in favor of resources
+[17/17] cluster_config:                              # leave empty; deprecated in favor of resources
 ```
 
 ### Generated layout
@@ -247,7 +247,7 @@ The above run produces:
 ```
 profile/<profile_name>/
 ├── CookieCutter.py        # template-helper module imported by the wrappers below
-├── config.yaml            # snakemake profile config — edit this for site tuning
+├── config.yaml            # snakemake profile config; edit this for site tuning
 ├── settings.json          # captures the answers you gave to cookiecutter (regenerate-friendly)
 ├── slurm-jobscript.sh     # per-job shell wrapper (executed by sbatch)
 ├── slurm-sidecar.py       # batched squeue/sacct polling (when cluster_sidecar=yes)
@@ -256,7 +256,7 @@ profile/<profile_name>/
 └── slurm_utils.py         # shared helpers for the above
 ```
 
-> **TIP** — re-running `cookiecutter $template --output-dir profile -f --replay` regenerates the same profile non-interactively (using `settings.json`); useful for sharing the recipe across teammates without re-typing the 17 answers.
+> **TIP:** Re-running `cookiecutter $template --output-dir profile -f --replay` regenerates the same profile non-interactively (using `settings.json`); useful for sharing the recipe across teammates without re-typing the 17 answers.
 
 ### Pin per-job cores to the allocation
 
@@ -287,7 +287,7 @@ This also matters for the caller memory defaults: `clairs` / `deepsomatic` size 
 Two notes on how paths are handled:
 
 - Snakemake runs with `cwd = --output-dir`, so every path in `config.yaml` is absolutised at generation time. Relative paths on the command line are resolved against **your current directory**, not the output directory.
-- Absolutisation uses `os.path.abspath`, which does **not** follow symlinks: a path like `/home/<user>` stays in its user-facing form rather than becoming its target. That keeps it consistent with what you bind-mount into the container — but see the symlink note under [`--singularity-bind`](#bind-mounts).
+- Absolutisation uses `os.path.abspath`, which does **not** follow symlinks: a path like `/home/<user>` stays in its user-facing form rather than becoming its target. That keeps it consistent with what you bind-mount into the container, but see the symlink note under [`--singularity-bind`](#bind-mounts).
 
 ### Handing off the cluster profile
 
@@ -296,7 +296,7 @@ Two notes on how paths are handled:
 1. Absolutise the profile path, so the runner works regardless of where you invoke it from.
 2. Rewrite any **path-valued keys inside `<profile>/config.yaml`** (`jobscript`, `cluster`, `cluster-status`, `cluster-cancel`, and the v8 `cluster-generic-*` equivalents) to absolute paths. Snakemake resolves these relative to the current working directory rather than to the profile directory, so without this rewrite they would break under `--directory <output_dir>`.
 3. Emit `snakemake --profile <absolute path> …` inside `run_workflow.sh`.
-4. Give the runner a scheduler header — `#SBATCH` when the profile directory name contains `slurm`, `#$` when it contains `sge` or `uge`. These are inert comments when the runner is started with `bash`.
+4. Give the runner a scheduler header: `#SBATCH` when the profile directory name contains `slurm`, `#$` when it contains `sge` or `uge`. These are inert comments when the runner is started with `bash`.
 
 When `--profile` is omitted, `setup_workflow.py` produces a local-execution runner (`snakemake -j <jobs> --use-singularity …`) that you run with `bash`.
 
@@ -307,7 +307,7 @@ python3 setup_workflow.py \
     --jobs 64                 # max concurrent cluster jobs (matches `jobs:` in the profile)
 ```
 
-If your site needs setup the generated script cannot know — a module load, a PATH for snakemake — add it with `--runner-preamble`, which is repeatable:
+If your site needs setup the generated script cannot know (a module load, a PATH for snakemake), add it with `--runner-preamble`, which is repeatable:
 
 ```bash
 python3 setup_workflow.py \
@@ -331,9 +331,9 @@ Rules-of-thumb for what to bind:
 - Every directory referenced by the **sample sheet** (ONT / HiFi bams or fastqs, `assembly_hap1`, `assembly_hap2`).
 - The **references** (`--chm13-fasta`, `--grch38-fasta`, `--grch38-gtf`, `--chm13-censat`, `--grch38-centromeres`, `--grch38-exclusions`, `--mane-summary`).
 - Every **annotation resource** path you passed (`--repeat-masker-bed`, `--segdup-bed`, `--censat-bed`, `--misassembly-hap*-bed`, `--cancer-gene-census-tsv`, `--cmrg-gene-list`, `--gnomad-*`, and the `--chain-to-*` / `--*-satellite` / `--simple-repeat` / `--line1-bed` paths if you import rather than generate them).
-- The **PRCGAP repository itself** — `--images-dir` holds the `.sif` files, `--workflow-dir` the rules and scripts, and `resource/line1/` the LINE-1 models.
+- The **PRCGAP repository itself**: `--images-dir` holds the `.sif` files, `--workflow-dir` the rules and scripts, and `resource/line1/` the LINE-1 models.
 - The **output directory** (`--output-dir`).
-- Any **symlink targets** — if a path is a symlink, bind both the symlink's location *and* the real path it points to. Some rules resolve symlinks internally (`assembly_bwa_index` uses `readlink -f`), so the target form has to be visible too. `realpath` is useful for spotting these. A common case is a home directory that is itself a symlink:
+- Any **symlink targets**: if a path is a symlink, bind both the symlink's location *and* the real path it points to. Some rules resolve symlinks internally (`assembly_bwa_index` uses `readlink -f`), so the target form has to be visible too. `realpath` is useful for spotting these. A common case is a home directory that is itself a symlink:
 
   ```bash
   SING_BIND="$HOME"
@@ -344,7 +344,7 @@ Rules-of-thumb for what to bind:
 Format notes:
 
 - The value is a **comma-separated** list of host paths; no spaces, no quotes around the value itself.
-- A single host path is enough — Apptainer mounts it read-write at the same path inside the container by default.
+- A single host path is enough; Apptainer mounts it read-write at the same path inside the container by default.
 - For read-only mounts, use the explicit `src:dst:ro` form (e.g. `--singularity-bind "/data:/data:ro,/scratch"`); the runner forwards it unchanged.
 - Bind paths must exist on the host before snakemake starts; non-existent paths cause container startup to fail.
 
@@ -408,8 +408,8 @@ bash run_workflow.sh
 
 The runner is generated with `--rerun-triggers mtime --rerun-incomplete --keep-going`, so re-running it after a failure resumes rather than restarting, and one failed branch does not stop the others.
 
-On success PRCGAP deletes the scratch a finished run no longer needs — every `workspace/`, the caller scatter directories, `bwa_index/`, `copynumber/reference/`, and the per-rule copies of `reference.fa` — and prints what it removed. A failed or interrupted run keeps everything for inspection. Pass `--debug` to `setup_workflow.py` to keep it in all cases.
+On success PRCGAP deletes the scratch a finished run no longer needs (every `workspace/`, the caller scatter directories, `bwa_index/`, `copynumber/reference/`, and the per-rule copies of `reference.fa`) and prints what it removed. A failed or interrupted run keeps everything for inspection. Pass `--debug` to `setup_workflow.py` to keep it in all cases.
 
 ## Next step
 
-For an end-to-end walkthrough — a real tumor / normal pair, the files a finished run produces, and the copy-number plot — see [Example](./Example.md). For workflow internals (rules, DAG, output layout), see [Workflow](./Workflow.md).
+For an end-to-end walkthrough with a real tumor / normal pair, the files a finished run produces, and the copy-number plot, see [Example](./Example.md). For workflow internals (rules, DAG, output layout), see [Workflow](./Workflow.md).
