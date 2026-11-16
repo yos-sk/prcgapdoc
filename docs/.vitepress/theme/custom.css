@@ -2,7 +2,7 @@
  * VitePress defaults: --vp-layout-max-width 1440px, .VPDoc .container 1152px,
  * .VPDoc.has-aside .content-container 688px. All three are widened here so
  * the prose column on doc pages (Workflow, Preparation, etc.) gets more
- * horizontal room — comparable to VuePress-1.x sites that use ~50–57vw doc
+ * horizontal room, comparable to VuePress-1.x sites that use ~50–57vw doc
  * widths. Tweak the numbers below to taste.
  */
 
@@ -16,7 +16,7 @@
  * layout max-width is also the breakpoint. Because we raised
  * --vp-layout-max-width to 1920px, every viewport between 1440px and 1920px
  * computes a sidebar that shrinks toward ~32px while its nav text overflows
- * to the right — overlapping the content column (which also starts near 32px).
+ * to the right, overlapping the content column (which also starts near 32px).
  *
  * Pin the sidebar to its stable 272px width and align the content offset to
  * match for the whole 960–1919px range. At >=1920px VitePress's native
